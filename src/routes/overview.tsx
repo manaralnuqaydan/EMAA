@@ -5,7 +5,6 @@ import { HomeScreen } from "@/components/screens/HomeScreen";
 import { ModeScreen } from "@/components/screens/ModeScreen";
 import { CameraScreen } from "@/components/screens/CameraScreen";
 import { ChatScreen } from "@/components/screens/ChatScreen";
-import { QuickScenariosScreen } from "@/components/screens/QuickScenariosScreen";
 
 export const Route = createFileRoute("/overview")({
   component: Overview,
@@ -17,7 +16,6 @@ const screens = [
   { id: "mode", label: "03 · Modes", caption: "اختيار وضع الترجمة", Component: ModeScreen },
   { id: "camera", label: "04 · Live Translate", caption: "الترجمة الفورية بالكاميرا", Component: CameraScreen },
   { id: "chat", label: "05 · AI Chat", caption: "محادثة ذكية مع AI", Component: ChatScreen },
-  { id: "quick-scenarios", label: "06 · Quick Scenarios", caption: "أسئلة شائعة", Component: QuickScenariosScreen },
 ];
 
 function Overview() {
@@ -39,11 +37,11 @@ function Overview() {
         <h1 className="mt-5 text-4xl font-black leading-tight md:text-6xl">
           <span className="text-gradient">إيماء</span>
         </h1>
-        <p className="mt-3 text-base font-medium text-foreground/80">تواصل بلا حدود · نحو عالم أكثر شمولا</p>
+        <p className="mt-3 text-base font-medium text-foreground/80">تواصل بلا حدود · نحو عالم أكثر شمولاً</p>
       </header>
 
       <section className="mx-auto mt-12 max-w-7xl px-4 pb-24">
-        <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 place-items-center">
+        <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 place-items-center">
           {screens.map((s) => (
             <PhoneFrame key={s.id} label={s.label} caption={s.caption}>
               <s.Component />
