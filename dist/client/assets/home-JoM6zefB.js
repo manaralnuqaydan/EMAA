@@ -1,0 +1,1 @@
+import{j as o}from"./index-CkVjIZMz.js";import{S as t}from"./ScreenStage-BdQ2J9-B.js";import{H as m}from"./HomeScreen-BNzHufZl.js";import"./sparkles-A8DXHDko.js";import"./createLucideIcon-CfKnQtVR.js";import"./camera-BInTW6Y6.js";const a=()=>o.jsx(t,{label:"02 · Home",caption:"الشاشة الرئيسية",children:o.jsx(m,{})});export{a as component};
