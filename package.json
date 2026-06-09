@@ -12,8 +12,6 @@
     "format": "prettier --write ."
   },
 
-//m;
-
   
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
