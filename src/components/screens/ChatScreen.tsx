@@ -14,8 +14,8 @@ import { Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 
 export function ChatScreen() {
-  const [signTranslation, setSignTranslation] = useState("في انتظار الإشارة...");
-  const [replyText, setReplyText] = useState("بالتأكيد، كيف يمكنني مساعدتك؟");
+  const [signTranslation, setSignTranslation] = useState("");
+  const [replyText, setReplyText] = useState("");
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -62,6 +62,10 @@ export function ChatScreen() {
 
     try {
       setIsSending(true);
+      setReplyText("جاري تجهيز الرد...");
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
 
       const res = await fetch("http://localhost:3001/api/agent", {
         method: "POST",
@@ -71,7 +75,10 @@ export function ChatScreen() {
         body: JSON.stringify({
           message,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const data = await res.json();
 
@@ -85,7 +92,7 @@ export function ChatScreen() {
       setReplyText(reply);
     } catch (err) {
       setReplyText(
-        "تعذر الاتصال بإيجنت إيماء. تأكد أن server.js يعمل على المنفذ 3001."
+        "تأخر الرد أو تعذر الاتصال بالإيجنت. تأكد أن server.js يعمل على المنفذ 3001."
       );
     } finally {
       setIsSending(false);
