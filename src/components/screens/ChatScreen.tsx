@@ -1,12 +1,21 @@
 import { ChevronRight, Volume2, Send, Hand, Sparkles, Mic, RefreshCw, X, Camera, Pause } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-
+type SelectedScenario = {
+  categoryId?: string;
+  categoryName?: string;
+  question?: string;
+  agentName?: string;
+  systemPrompt?: string;
+};
 export function ChatScreen() {
   const [signTranslation, setSignTranslation] = useState("في انتظار الإشارة...");
   const [replyText, setReplyText] = useState("بالتأكيد، كيف يمكنني مساعدتك؟");
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+const [isSending, setIsSending] = useState(false);
+const [selectedScenario, setSelectedScenario] = useState<SelectedScenario | null>(null);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -16,6 +25,27 @@ export function ChatScreen() {
     startCamera();
     return () => streamRef.current?.getTracks().forEach(t => t.stop());
   }, []);
+useEffect(() => {
+  const rawScenario = localStorage.getItem("selectedScenario");
+
+  if (!rawScenario) return;
+
+  try {
+    const scenario = JSON.parse(rawScenario);
+    setSelectedScenario(scenario);
+
+    if (scenario.question) {
+      setInputText(scenario.question);
+      setSignTranslation(scenario.question);
+    }
+
+    if (scenario.agentName) {
+      setReplyText(`أنا ${scenario.agentName}. كيف أساعدك؟`);
+    }
+  } catch (error) {
+    console.error("خطأ في قراءة السيناريو:", error);
+  }
+}, []);
 
   const startCamera = async () => {
     try {
@@ -52,13 +82,54 @@ export function ChatScreen() {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
-      setSignTranslation(data.prediction);
+         const data = await res.json();
+
+    const prediction = data.prediction || data.text || "";
+
+    setSignTranslation(prediction);
+
+    if (prediction) {
+      await sendMessageToAgent(prediction);
+    } 
     } catch (err) {
       setSignTranslation("حدث خطأ في الاتصال");
     }
   };
+   const sendMessageToAgent = async (customMessage?: string) => {
+  const message = customMessage?.trim() || inputText.trim() || signTranslation.trim();
 
+  if (!message) return;
+
+  setIsSending(true);
+  setReplyText("جاري التفكير...");
+
+  try {
+    const res = await fetch("http://localhost:3001/api/agent", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message,
+        scenario: selectedScenario,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "حدث خطأ في الإيجنت");
+    }
+
+    setReplyText(data.reply || "لم يصل رد من الإيجنت");
+    setInputText("");
+  } catch (error) {
+    console.error("AI Agent Error:", error);
+    setReplyText("تعذر الاتصال بإيجنت إيماء. تأكد أن server.js يعمل على المنفذ 3001.");
+  } finally {
+    setIsSending(false);
+  }
+}; 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden text-white"
       style={{ background: "#1a1230" }}>
@@ -194,13 +265,19 @@ export function ChatScreen() {
               <button className="grid h-9 w-9 place-items-center rounded-full bg-foreground/5">
                 <Mic className="h-4 w-4 text-foreground/70" />
               </button>
+              
               <input
-                dir="rtl"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="اكتب لتحويل النص إلى إشارة..."
-                className="flex-1 bg-transparent px-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              />
+  dir="rtl"
+  value={inputText}
+  onChange={(e) => setInputText(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      sendMessageToAgent();
+    }
+  }}
+  placeholder="اكتب رسالتك لإيجنت إيماء..."
+  className="flex-1 bg-transparent px-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+/>
               {inputText && (
                 <button
                   onClick={() => setInputText("")}
@@ -209,9 +286,13 @@ export function ChatScreen() {
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
-              <button className="grid h-9 w-9 place-items-center rounded-full grad-purple shadow-soft">
-                <Send className="h-4 w-4 text-white" />
-              </button>
+              <button
+  onClick={() => sendMessageToAgent()}
+  disabled={isSending}
+  className="grid h-9 w-9 place-items-center rounded-full grad-purple shadow-soft disabled:opacity-50"
+>
+  <Send className="h-4 w-4 text-white" />
+</button>
             </div>
           </div>
         </div>
