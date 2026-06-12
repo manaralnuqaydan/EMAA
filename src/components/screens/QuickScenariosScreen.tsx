@@ -43,136 +43,11 @@ export function QuickScenariosScreen() {
       "أستفسر عن الشحن",
     ],
   };
-  const scenarioAgents: Record<
-  string,
-  {
-    agentName: string;
-    systemPrompt: string;
-  }
-> = {
-  bank: {
-    agentName: "مساعد البنك - إيماء",
-    systemPrompt: `
-أنت مساعد ذكي من منصة إيماء مخصص للصم والبكم داخل سيناريو البنك.
 
-مهمتك:
-- مساعدة المستخدم في الخدمات البنكية بلغة عربية بسيطة.
-- اجعل الجمل قصيرة وواضحة.
-- اشرح الخطوات واحدة واحدة.
-- لا تطلب الرقم السري.
-- لا تطلب رمز التحقق OTP.
-- لا تنفذ عمليات مالية حقيقية.
-- إذا ضاعت البطاقة، وجّه المستخدم لإيقافها فورًا من التطبيق أو التواصل مع البنك.
-
-الخدمات:
-- فتح حساب.
-- الاستعلام عن الرصيد.
-- طلب شيك.
-- الاستفسار عن الفائدة.
-- تحويل الأموال.
-
-طريقة الرد:
-أعطِ الرد بصيغة مناسبة للصم والبكم.
-استخدم كلمات واضحة قابلة للتحويل إلى لغة إشارة.
-`
-  },
-
-  telecom: {
-    agentName: "مساعد الاتصالات - إيماء",
-    systemPrompt: `
-أنت مساعد ذكي من منصة إيماء مخصص للصم والبكم داخل سيناريو الاتصالات.
-
-مهمتك:
-- مساعدة المستخدم في الرصيد، الفواتير، العروض، الرقم، والخدمات.
-- استخدم لغة سهلة ومباشرة.
-- اسأل سؤالًا واحدًا فقط إذا احتجت معلومة.
-- لا تطلب رمز التحقق.
-- لا تعد المستخدم بتفعيل خدمة إلا إذا كانت المعلومة مؤكدة.
-
-الخدمات:
-- شحن رصيد.
-- الاستعلام عن الفاتورة.
-- العروض الخاصة.
-- تغيير الرقم.
-- إلغاء الخدمة.
-
-طريقة الرد:
-ردود قصيرة، مرتبة، ومناسبة للتحويل إلى لغة إشارة.
-`
-  },
-
-  hospital: {
-    agentName: "مساعد المستشفى - إيماء",
-    systemPrompt: `
-أنت مساعد إداري ذكي من منصة إيماء مخصص للصم والبكم داخل سيناريو المستشفى.
-
-مهمتك:
-- مساعدة المستخدم في المواعيد، النتائج، الوصفات، الفواتير، والتحويلات.
-- لا تشخص الأمراض.
-- لا تصرف أدوية.
-- لا تعطي قرارًا طبيًا نهائيًا.
-- إذا كانت الحالة طارئة مثل صعوبة تنفس، ألم صدر، نزيف شديد، أو فقدان وعي، وجّه المستخدم للطوارئ فورًا.
-
-الخدمات:
-- موعد كشف.
-- نتائج التحاليل.
-- وصفة دواء.
-- فاتورة.
-- تحويلة تخصصي.
-
-طريقة الرد:
-استخدم جمل قصيرة وواضحة تناسب الصم والبكم.
-`
-  },
-
-  shop: {
-    agentName: "مساعد المتجر الإلكتروني - إيماء",
-    systemPrompt: `
-أنت مساعد ذكي من منصة إيماء مخصص للصم والبكم داخل سيناريو متجر إلكتروني.
-
-مهمتك:
-- مساعدة المستخدم في المنتجات، الاسترجاع، الطلبات، الخصومات، والشحن.
-- لا تخترع رقم تتبع.
-- لا تؤكد توفر منتج إذا لم تكن البيانات موجودة.
-- اشرح الخطوات بطريقة سهلة.
-
-الخدمات:
-- الاستفسار عن المنتج.
-- إرجاع المنتج.
-- تتبع الطلب.
-- كود خصم.
-- الشحن.
-
-طريقة الرد:
-رد مختصر، واضح، وخطوة بخطوة.
-`
-  }
-};
-const handleSelectQuestion = (question: string) => {
-  if (!selectedCategory) return;
-
-  const category = categories.find((c) => c.id === selectedCategory);
-  const agent = scenarioAgents[selectedCategory];
-
-  if (!agent) return;
-
-  const selectedScenario = {
-    categoryId: selectedCategory,
-    categoryName: category?.name ?? "",
-    question,
-    agentName: agent.agentName,
-    systemPrompt: agent.systemPrompt,
-    responseFormat: {
-      text: "الرد العربي المبسط",
-      sign_steps: ["كلمات", "قصيرة", "مناسبة", "للإشارة"],
-      intent: "نوع الطلب"
-    }
+  const handleSelectQuestion = (question: string) => {
+    localStorage.setItem("eimaa_selected_message", question);
+    navigate({ to: "/chat" });
   };
-
-  localStorage.setItem("selectedScenario", JSON.stringify(selectedScenario));
-
-  navigate({ to: "/chat" });
-};
 
   return (
     <div
@@ -187,10 +62,14 @@ const handleSelectQuestion = (question: string) => {
         >
           <ChevronRight className="h-4 w-4" />
         </Link>
+
         <div className="text-center">
-          <div className="text-[10px] tracking-[0.25em] text-white/50">QUICK</div>
+          <div className="text-[10px] tracking-[0.25em] text-white/50">
+            QUICK
+          </div>
           <div className="text-sm font-semibold">أسئلة شائعة</div>
         </div>
+
         <div className="grid h-10 w-10 place-items-center rounded-full glass-dark text-[10px]">
           AI
         </div>
@@ -204,6 +83,7 @@ const handleSelectQuestion = (question: string) => {
               <h2 className="text-lg font-bold">اختر الجهة</h2>
               <p className="text-xs text-white/50">لعرض الأسئلة الشائعة</p>
             </div>
+
             {categories.map((category) => (
               <button
                 key={category.id}
@@ -215,7 +95,9 @@ const handleSelectQuestion = (question: string) => {
               >
                 <div className="flex items-center justify-between">
                   <ChevronLeft className="h-5 w-5" />
-                  <span className="text-lg font-bold text-center flex-1">{category.name}</span>
+                  <span className="text-lg font-bold text-center flex-1">
+                    {category.name}
+                  </span>
                 </div>
               </button>
             ))}
@@ -229,11 +111,14 @@ const handleSelectQuestion = (question: string) => {
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
+
               <h2 className="text-lg font-bold text-center flex-1">
                 {categories.find((c) => c.id === selectedCategory)?.name}
               </h2>
+
               <p className="text-xs text-white/50">اختر السؤال</p>
             </div>
+
             {questions[selectedCategory]?.map((question, index) => (
               <button
                 key={index}
@@ -245,7 +130,9 @@ const handleSelectQuestion = (question: string) => {
               >
                 <div className="flex items-center gap-3">
                   <MessageCircle className="h-5 w-5 shrink-0 text-white/70" />
-                  <span className="font-semibold text-base text-right flex-1">{question}</span>
+                  <span className="font-semibold text-base text-right flex-1">
+                    {question}
+                  </span>
                 </div>
               </button>
             ))}
