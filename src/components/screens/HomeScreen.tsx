@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { Camera, Home, Sparkles, MessageCircle } from "lucide-react";
-=======
-import { Camera, Home, Sparkles } from "lucide-react";
->>>>>>> ee05a7642465a63dc5ad9e5c9adf55d316ccb8d7
 import { Link } from "@tanstack/react-router";
 
 export function HomeScreen() {
@@ -17,11 +13,7 @@ export function HomeScreen() {
         style={{ background: "radial-gradient(circle, oklch(0.8 0.14 310 / 0.7), transparent 70%)" }} />
 
       <div className="relative z-10 flex h-full flex-col px-6 pb-24 pt-12">
-<<<<<<< HEAD
-        {/* header */}
-=======
         {/* header — minimal, only wordmark */}
->>>>>>> ee05a7642465a63dc5ad9e5c9adf55d316ccb8d7
         <div className="flex flex-col items-center">
           <div className="text-3xl font-light tracking-[0.02em] text-gradient leading-none" style={{ fontWeight: 300 }}>
             إيماء
@@ -70,17 +62,9 @@ export function HomeScreen() {
           </div>
         </div>
 
-<<<<<<< HEAD
-        {/* bottom nav — الرئيسية يمين، الدعم يسار */}
-        <div className="absolute inset-x-5 bottom-5">
-          <div className="glass shadow-card flex items-center justify-center gap-1 rounded-3xl px-2 py-3">
-
-            {/* الرئيسية — يمين */}
-=======
         {/* bottom nav — only Home */}
         <div className="absolute inset-x-5 bottom-5">
           <div className="glass shadow-card flex items-center justify-center rounded-3xl px-2 py-3">
->>>>>>> ee05a7642465a63dc5ad9e5c9adf55d316ccb8d7
             <Link
               to="/"
               className="relative flex flex-col items-center gap-1 px-6 py-1"
@@ -90,7 +74,6 @@ export function HomeScreen() {
               <Home className="h-5 w-5 text-primary" strokeWidth={2.2} />
               <span className="text-[9px] font-semibold text-primary">الرئيسية</span>
             </Link>
-<<<<<<< HEAD
 
             <div className="w-px h-6 bg-foreground/10" />
 
@@ -105,8 +88,6 @@ export function HomeScreen() {
               <span className="text-[9px] font-semibold text-primary">الدعم</span>
             </Link>
 
-=======
->>>>>>> ee05a7642465a63dc5ad9e5c9adf55d316ccb8d7
           </div>
         </div>
       </div>

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SplashRouteImport } from './routes/splash'
+import { Route as QuickScenariosRouteImport } from './routes/quick-scenarios'
 import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as ModesRouteImport } from './routes/modes'
 import { Route as HomeRouteImport } from './routes/home'
@@ -20,6 +21,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const SplashRoute = SplashRouteImport.update({
   id: '/splash',
   path: '/splash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuickScenariosRoute = QuickScenariosRouteImport.update({
+  id: '/quick-scenarios',
+  path: '/quick-scenarios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OverviewRoute = OverviewRouteImport.update({
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute
   '/modes': typeof ModesRoute
   '/overview': typeof OverviewRoute
+  '/quick-scenarios': typeof QuickScenariosRoute
   '/splash': typeof SplashRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/home': typeof HomeRoute
   '/modes': typeof ModesRoute
   '/overview': typeof OverviewRoute
+  '/quick-scenarios': typeof QuickScenariosRoute
   '/splash': typeof SplashRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute
   '/modes': typeof ModesRoute
   '/overview': typeof OverviewRoute
+  '/quick-scenarios': typeof QuickScenariosRoute
   '/splash': typeof SplashRoute
 }
 export interface FileRouteTypes {
@@ -90,9 +99,18 @@ export interface FileRouteTypes {
     | '/home'
     | '/modes'
     | '/overview'
+    | '/quick-scenarios'
     | '/splash'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/camera' | '/chat' | '/home' | '/modes' | '/overview' | '/splash'
+  to:
+    | '/'
+    | '/camera'
+    | '/chat'
+    | '/home'
+    | '/modes'
+    | '/overview'
+    | '/quick-scenarios'
+    | '/splash'
   id:
     | '__root__'
     | '/'
@@ -101,6 +119,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/modes'
     | '/overview'
+    | '/quick-scenarios'
     | '/splash'
   fileRoutesById: FileRoutesById
 }
@@ -111,6 +130,7 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   ModesRoute: typeof ModesRoute
   OverviewRoute: typeof OverviewRoute
+  QuickScenariosRoute: typeof QuickScenariosRoute
   SplashRoute: typeof SplashRoute
 }
 
@@ -121,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/splash'
       fullPath: '/splash'
       preLoaderRoute: typeof SplashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quick-scenarios': {
+      id: '/quick-scenarios'
+      path: '/quick-scenarios'
+      fullPath: '/quick-scenarios'
+      preLoaderRoute: typeof QuickScenariosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/overview': {
@@ -175,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   ModesRoute: ModesRoute,
   OverviewRoute: OverviewRoute,
+  QuickScenariosRoute: QuickScenariosRoute,
   SplashRoute: SplashRoute,
 }
 export const routeTree = rootRouteImport
