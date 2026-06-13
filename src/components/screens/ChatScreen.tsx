@@ -7,6 +7,10 @@ export function ChatScreen() {
   const [replyText, setReplyText] = useState("بالتأكيد، كيف يمكنني مساعدتك؟");
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
+  
+  // 1. إضافة متغير لحفظ النسبة
+  const [confidence, setConfidence] = useState<number | null>(null);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -30,6 +34,7 @@ export function ChatScreen() {
   const startRecording = () => {
     if (!streamRef.current) return;
     chunksRef.current = [];
+    setConfidence(null); // تصفير النسبة عند بدء تسجيل جديد
     const recorder = new MediaRecorder(streamRef.current);
     mediaRecorderRef.current = recorder;
     recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
@@ -54,8 +59,14 @@ export function ChatScreen() {
       });
       const data = await res.json();
       setSignTranslation(data.prediction);
+      
+      // 2. استقبال النسبة من السيرفر وتحديث الواجهة
+      if (data.confidence !== undefined) {
+        setConfidence(data.confidence);
+      }
     } catch (err) {
       setSignTranslation("حدث خطأ في الاتصال");
+      setConfidence(null);
     }
   };
 
@@ -90,7 +101,7 @@ export function ChatScreen() {
                 <span className={`absolute inset-0 rounded-full ${isRecording ? 'animate-ping bg-rose-400' : 'bg-green-400'}`} />
                 <span className={`relative h-1.5 w-1.5 rounded-full ${isRecording ? 'bg-rose-500' : 'bg-green-500'}`} />
               </span>
-              <span className="font-semibold">{isRecording ? 'جاري التسجيل' : 'يوقّع الآن'}</span>
+              <span className="font-semibold">{isRecording ? 'جاري التسجيل' : 'تتم الترجمة الآن'}</span>
             </div><div className="text-[10px] text-white/60">المستخدم · نور</div>
           </div>
 
@@ -101,7 +112,10 @@ export function ChatScreen() {
               style={{ background: "linear-gradient(90deg, transparent, oklch(0.85 0.18 295), transparent)" }} />
             <div className="absolute right-3 top-3 rounded-xl glass-dark px-3 py-1.5 text-center">
               <div className="text-[9px] text-white/60">دقة</div>
-              <div className="text-base font-black text-gradient">97%</div>
+              {/* 3. استبدال الرقم الثابت بالمتغير الديناميكي */}
+              <div className="text-base font-black text-gradient">
+                {confidence !== null ? `${Math.round(confidence)}%` : "-"}
+              </div>
             </div>
             {/* زر التسجيل */}
             <button
@@ -132,7 +146,7 @@ export function ChatScreen() {
                 className="w-full resize-none rounded-xl bg-white/[0.04] p-2 pl-8 text-right text-lg font-semibold leading-snug text-white outline-none ring-1 ring-white/10 focus:ring-primary/50 md:text-xl"
               />
               <button
-                onClick={() => setSignTranslation("")}
+                onClick={() => { setSignTranslation(""); setConfidence(null); }}
                 className="absolute left-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20"
               >
                 <X className="h-3 w-3" />

@@ -5,6 +5,10 @@ import { useState } from "react";
 export function CameraScreen() {
   const [arabicText, setArabicText] = useState("مرحبًا، كيف يمكنني مساعدتك اليوم؟");
   const [englishText, setEnglishText] = useState("Hello, how can I help you today?");
+  
+  // 1. التعديل الجديد: إضافة State لحفظ نسبة الثقة (Confidence) وتعيين قيمة افتراضية لها
+  const [confidence, setConfidence] = useState<number | null>(null);
+
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden text-white"
       style={{ background: "linear-gradient(170deg, #1a1230 0%, #0a0617 100%)" }}>
@@ -49,7 +53,10 @@ export function CameraScreen() {
           {/* confidence chip */}
           <div className="absolute right-3 top-3 rounded-2xl glass-dark px-3 py-2 text-right">
             <div className="text-[9px] text-white/60">دقة التعرف</div>
-            <div className="text-base font-black text-gradient">97%</div>
+            {/* 2. التعديل الجديد: عرض النسبة الحقيقية المقربة إذا وجدت، أو عرض شرطة في حال لم يبدأ التنبؤ بعد */}
+            <div className="text-base font-black text-gradient">
+              {confidence !== null ? `${Math.round(confidence)}%` : "-"}
+            </div>
           </div>
         </div>
 
@@ -73,7 +80,7 @@ export function CameraScreen() {
             />
             <button
               type="button"
-              onClick={() => { setArabicText(""); setEnglishText(""); }}
+              onClick={() => { setArabicText(""); setEnglishText(""); setConfidence(null); }}
               aria-label="مسح"
               className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20"
             >
@@ -115,5 +122,3 @@ export function CameraScreen() {
     </div>
   );
 }
-
-
