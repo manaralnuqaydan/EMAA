@@ -33,13 +33,14 @@ for label in os.listdir(DATA_DIR):
                         lm.extend([landmark.x, landmark.y, landmark.z])
                     frame_landmarks.append(lm)
         cap.release()
+        
         if frame_landmarks:
-            avg = np.mean(frame_landmarks, axis=0)
-            data.append(avg)
-            labels.append(label)
-            print(f"✅ {label} - {video_file}")
+            for lm in frame_landmarks:
+                data.append(lm)
+                labels.append(label)
+            print(f"✅ {label} - {video_file} (تم استخراج {len(frame_landmarks)} فريم)")
 
 with open('data.pkl', 'wb') as f:
     pickle.dump({'data': data, 'labels': labels}, f)
 
-print(f"\nتم! عدد العينات: {len(data)}")
+print(f"\nتم! إجمالي عدد الفريمات/العينات المستخرجة: {len(data)}")
