@@ -45,7 +45,6 @@ export function QuickScenariosScreen() {
   };
 
   const handleSelectQuestion = (question: string) => {
-    localStorage.setItem("eimaa_selected_message", question);
     navigate({ to: "/chat" });
   };
 
@@ -62,14 +61,10 @@ export function QuickScenariosScreen() {
         >
           <ChevronRight className="h-4 w-4" />
         </Link>
-
         <div className="text-center">
-          <div className="text-[10px] tracking-[0.25em] text-white/50">
-            QUICK
-          </div>
+          <div className="text-[10px] tracking-[0.25em] text-white/50">QUICK</div>
           <div className="text-sm font-semibold">أسئلة شائعة</div>
         </div>
-
         <div className="grid h-10 w-10 place-items-center rounded-full glass-dark text-[10px]">
           AI
         </div>
@@ -83,7 +78,6 @@ export function QuickScenariosScreen() {
               <h2 className="text-lg font-bold">اختر الجهة</h2>
               <p className="text-xs text-white/50">لعرض الأسئلة الشائعة</p>
             </div>
-
             {categories.map((category) => (
               <button
                 key={category.id}
@@ -95,9 +89,7 @@ export function QuickScenariosScreen() {
               >
                 <div className="flex items-center justify-between">
                   <ChevronLeft className="h-5 w-5" />
-                  <span className="text-lg font-bold text-center flex-1">
-                    {category.name}
-                  </span>
+                  <span className="text-lg font-bold text-center flex-1">{category.name}</span>
                 </div>
               </button>
             ))}
@@ -111,14 +103,11 @@ export function QuickScenariosScreen() {
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
-
               <h2 className="text-lg font-bold text-center flex-1">
                 {categories.find((c) => c.id === selectedCategory)?.name}
               </h2>
-
               <p className="text-xs text-white/50">اختر السؤال</p>
             </div>
-
             {questions[selectedCategory]?.map((question, index) => (
               <button
                 key={index}
@@ -130,9 +119,7 @@ export function QuickScenariosScreen() {
               >
                 <div className="flex items-center gap-3">
                   <MessageCircle className="h-5 w-5 shrink-0 text-white/70" />
-                  <span className="font-semibold text-base text-right flex-1">
-                    {question}
-                  </span>
+                  <span className="font-semibold text-base text-right flex-1">{question}</span>
                 </div>
               </button>
             ))}

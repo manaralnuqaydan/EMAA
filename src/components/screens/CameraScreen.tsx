@@ -1,13 +1,17 @@
-import { Volume2, Pause, ChevronRight, Sparkles, Hand, X } from "lucide-react";
+import { Volume2, Pause, ChevronRight, Sparkles, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
+import AvatarViewer from "../ui/AvatarViewer";
 
 export function CameraScreen() {
   const [arabicText, setArabicText] = useState("مرحبًا، كيف يمكنني مساعدتك اليوم؟");
   const [englishText, setEnglishText] = useState("Hello, how can I help you today?");
+  const [confidence, setConfidence] = useState<number | null>(null);
+
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden text-white"
       style={{ background: "linear-gradient(170deg, #1a1230 0%, #0a0617 100%)" }}>
+      
       {/* header */}
       <div className="relative z-20 flex w-full shrink-0 items-center justify-between px-5 pt-6 md:pt-8 pb-4">
         <Link to="/modes" aria-label="رجوع" className="grid h-10 w-10 place-items-center rounded-full glass-dark">
@@ -23,33 +27,26 @@ export function CameraScreen() {
         <div className="grid h-10 w-10 place-items-center rounded-full glass-dark text-[10px]">AR</div>
       </div>
 
-      {/* main content — side by side on desktop */}
+      {/* main content */}
       <div className="relative z-10 flex flex-1 flex-col gap-5 overflow-hidden px-5 md:flex-row md:items-stretch md:gap-6 md:pb-5">
 
         {/* camera / avatar box */}
         <div className="relative flex flex-1 flex-col items-center justify-center rounded-3xl glass-dark p-5 md:p-8 overflow-hidden">
-          {/* glow */}
           <div className="absolute inset-x-0 top-0 h-full"
             style={{ background: "radial-gradient(ellipse at center top, oklch(0.5 0.22 295 / 0.55), transparent 70%)" }} />
           <div className="absolute bottom-6 h-40 w-40 rounded-full opacity-70 blur-3xl"
             style={{ background: "radial-gradient(circle, oklch(0.7 0.28 300 / 0.6), transparent 70%)" }} />
 
-          <div className="relative z-10 flex flex-col items-center gap-3 text-white/80">
-            <div className="grid h-20 w-20 place-items-center rounded-full grad-purple shadow-glow">
-              <Hand className="h-10 w-10" strokeWidth={1.5} />
-            </div>
-            <div className="text-[11px] tracking-[0.25em] text-white/60">3D AVATAR</div>
-            <div className="text-[10px] text-white/40">سيتم عرض الأفاتار الحي هنا</div>
+          {/* Avatar Container */}
+          <div className="relative z-[999] w-full h-64 flex items-center justify-center">
+            <AvatarViewer />
           </div>
 
-          {/* scan line */}
-          <div className="absolute inset-x-12 top-4 h-px animate-scan rounded-full"
-            style={{ background: "linear-gradient(90deg, transparent, oklch(0.85 0.18 295), transparent)" }} />
-
-          {/* confidence chip */}
           <div className="absolute right-3 top-3 rounded-2xl glass-dark px-3 py-2 text-right">
             <div className="text-[9px] text-white/60">دقة التعرف</div>
-            <div className="text-base font-black text-gradient">97%</div>
+            <div className="text-base font-black text-gradient">
+              {confidence !== null ? `${Math.round(confidence)}%` : "-"}
+            </div>
           </div>
         </div>
 
@@ -73,8 +70,7 @@ export function CameraScreen() {
             />
             <button
               type="button"
-              onClick={() => { setArabicText(""); setEnglishText(""); }}
-              aria-label="مسح"
+              onClick={() => { setArabicText(""); setEnglishText(""); setConfidence(null); }}
               className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20"
             >
               <X className="h-3.5 w-3.5" />
@@ -102,7 +98,7 @@ export function CameraScreen() {
         </div>
       </div>
 
-      {/* bottom controls — full width */}
+      {/* bottom controls */}
       <div className="relative z-20 flex w-full shrink-0 items-center justify-center gap-5 px-5 pb-6 pt-4">
         <button className="grid h-12 w-12 place-items-center rounded-full glass-dark">
           <Volume2 className="h-5 w-5" />
@@ -115,5 +111,3 @@ export function CameraScreen() {
     </div>
   );
 }
-
-
