@@ -1,6 +1,8 @@
 import { ChevronRight, Volume2, Send, Hand, Sparkles, Mic, RefreshCw, X, Camera, Pause } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
+// قمت بإضافة استيراد الأفاتار هنا
+import AvatarViewer from "@/components/ui/AvatarViewer"; 
 
 export function ChatScreen() {
   const [signTranslation, setSignTranslation] = useState("في انتظار الإشارة...");
@@ -8,7 +10,6 @@ export function ChatScreen() {
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   
-  // 1. إضافة متغير لحفظ النسبة
   const [confidence, setConfidence] = useState<number | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -34,7 +35,7 @@ export function ChatScreen() {
   const startRecording = () => {
     if (!streamRef.current) return;
     chunksRef.current = [];
-    setConfidence(null); // تصفير النسبة عند بدء تسجيل جديد
+    setConfidence(null);
     const recorder = new MediaRecorder(streamRef.current);
     mediaRecorderRef.current = recorder;
     recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
@@ -59,8 +60,6 @@ export function ChatScreen() {
       });
       const data = await res.json();
       setSignTranslation(data.prediction);
-      
-      // 2. استقبال النسبة من السيرفر وتحديث الواجهة
       if (data.confidence !== undefined) {
         setConfidence(data.confidence);
       }
@@ -112,12 +111,10 @@ export function ChatScreen() {
               style={{ background: "linear-gradient(90deg, transparent, oklch(0.85 0.18 295), transparent)" }} />
             <div className="absolute right-3 top-3 rounded-xl glass-dark px-3 py-1.5 text-center">
               <div className="text-[9px] text-white/60">دقة</div>
-              {/* 3. استبدال الرقم الثابت بالمتغير الديناميكي */}
               <div className="text-base font-black text-gradient">
                 {confidence !== null ? `${Math.round(confidence)}%` : "-"}
               </div>
             </div>
-            {/* زر التسجيل */}
             <button
               onClick={isRecording ? stopRecording : startRecording}
               className={`absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-glow transition-all ${isRecording ? 'bg-rose-500 text-white' : 'grad-purple text-white'}`}
@@ -173,14 +170,10 @@ export function ChatScreen() {
               <div className="text-[10px] text-muted-foreground">المحاور · أحمد</div>
             </div>
 
-            {/* 3D avatar */}
-            <div className="relative mt-4 flex flex-1 items-center justify-center overflow-hidden rounded-2xl"
-              style={{ background: "oklch(0.95 0.02 295)" }}><div className="flex flex-col items-center gap-3 text-primary/80">
-                <div className="grid h-20 w-20 place-items-center rounded-full grad-purple shadow-soft">
-                  <Hand className="h-10 w-10 text-white" strokeWidth={1.5} />
-                </div>
-                <div className="text-[11px] tracking-[0.25em] text-primary/70">3D AVATAR</div>
-              </div>
+            {/* 3D avatar - هنا تم استبدال أيقونة اليد بـ AvatarViewer */}
+            <div className="relative mt-4 flex flex-1 items-center justify-center overflow-hidden rounded-2xl z-[999]"
+              style={{ background: "oklch(0.95 0.02 295)" }}>
+              <AvatarViewer />
               <div className="absolute right-3 top-3 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary backdrop-blur">
                 إشارة حية
               </div>
