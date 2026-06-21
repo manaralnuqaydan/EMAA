@@ -4,14 +4,19 @@ var createMiddleware = (options, __opts) => {
 		type: "request",
 		...__opts || options
 	};
+	const setValidator = (validator) => {
+		return createMiddleware({}, Object.assign(resolvedOptions, {
+			validator,
+			inputValidator: validator
+		}));
+	};
 	return {
 		options: resolvedOptions,
 		middleware: (middleware) => {
 			return createMiddleware({}, Object.assign(resolvedOptions, { middleware }));
 		},
-		inputValidator: (inputValidator) => {
-			return createMiddleware({}, Object.assign(resolvedOptions, { inputValidator }));
-		},
+		validator: setValidator,
+		inputValidator: setValidator,
 		client: (client) => {
 			return createMiddleware({}, Object.assign(resolvedOptions, { client }));
 		},
