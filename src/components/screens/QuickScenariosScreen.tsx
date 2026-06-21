@@ -44,8 +44,12 @@ export function QuickScenariosScreen() {
     ],
   };
 
+  // ✅ الحين نرسل السؤال مع الـ navigation
   const handleSelectQuestion = (question: string) => {
-    navigate({ to: "/chat" });
+    navigate({
+      to: "/chat",
+      search: { question, category: selectedCategory ?? "" },
+    });
   };
 
   return (

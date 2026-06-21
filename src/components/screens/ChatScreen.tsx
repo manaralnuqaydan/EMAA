@@ -1,16 +1,21 @@
-import { ChevronRight, Volume2, Send, Hand, Sparkles, Mic, RefreshCw, X, Camera, Pause } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { ChevronRight, Volume2, Send, Sparkles, Mic, RefreshCw, X, Camera, Pause } from "lucide-react";
+import { Link, useSearch } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-// قمت بإضافة استيراد الأفاتار هنا
-import AvatarViewer from "@/components/ui/AvatarViewer"; 
+import AvatarViewer from "@/components/ui/AvatarViewer";
+
+const OPENAI_API_KEY = "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";
 
 export function ChatScreen() {
+  const search = useSearch({ from: "/chat" }) as { question?: string; category?: string };
+
   const [signTranslation, setSignTranslation] = useState("في انتظار الإشارة...");
   const [replyText, setReplyText] = useState("بالتأكيد، كيف يمكنني مساعدتك؟");
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
-  
   const [confidence, setConfidence] = useState<number | null>(null);
+  const [isLoadingAgent, setIsLoadingAgent] = useState(false);
+  const [agentReply, setAgentReply] = useState("");
+  const [shouldPlayAvatar, setShouldPlayAvatar] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -21,6 +26,13 @@ export function ChatScreen() {
     startCamera();
     return () => streamRef.current?.getTracks().forEach(t => t.stop());
   }, []);
+
+  useEffect(() => {
+    if (search?.question) {
+      setInputText(search.question);
+      sendToAgent(search.question);
+    }
+  }, [search?.question]);
 
   const startCamera = async () => {
     try {
@@ -60,13 +72,64 @@ export function ChatScreen() {
       });
       const data = await res.json();
       setSignTranslation(data.prediction);
-      if (data.confidence !== undefined) {
-        setConfidence(data.confidence);
-      }
+      if (data.confidence !== undefined) setConfidence(data.confidence);
     } catch (err) {
       setSignTranslation("حدث خطأ في الاتصال");
       setConfidence(null);
     }
+  };
+
+  const sendToAgent = async (text: string) => {
+    if (!text.trim()) return;
+    setIsLoadingAgent(true);
+    setAgentReply("");
+    setShouldPlayAvatar(false);
+
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: `أنت مساعد ذكي لتطبيق إيماء لخدمة العملاء الصم وضعاف السمع.
+المستخدم يكتب لك طلبه أو سؤاله، ردّ عليه بجملة مفيدة وواضحة ومختصرة باللغة العربية.
+ردودك يجب أن تكون:
+- مباشرة ومفيدة
+- لا تتجاوز جملتين
+- مناسبة لسياق خدمة العملاء (بنك، اتصالات، مستشفى، متجر)`,
+            },
+            {
+              role: "user",
+              content: text,
+            },
+          ],
+          max_tokens: 100,
+        }),
+      });
+
+      const data = await response.json();
+      const reply = data.choices?.[0]?.message?.content?.trim() || "عذراً، لم أفهم طلبك";
+      setAgentReply(reply);
+      setReplyText(reply);
+      setShouldPlayAvatar(true);
+    } catch (err) {
+      setAgentReply("حدث خطأ في الاتصال بالمساعد");
+      setReplyText("حدث خطأ في الاتصال بالمساعد");
+    } finally {
+      setIsLoadingAgent(false);
+    }
+  };
+
+  const handleSend = () => {
+    if (!inputText.trim()) return;
+    sendToAgent(inputText);
+    setInputText("");
   };
 
   return (
@@ -101,7 +164,8 @@ export function ChatScreen() {
                 <span className={`relative h-1.5 w-1.5 rounded-full ${isRecording ? 'bg-rose-500' : 'bg-green-500'}`} />
               </span>
               <span className="font-semibold">{isRecording ? 'جاري التسجيل' : 'تتم الترجمة الآن'}</span>
-            </div><div className="text-[10px] text-white/60">المستخدم · نور</div>
+            </div>
+            <div className="text-[10px] text-white/60">المستخدم · نور</div>
           </div>
 
           {/* camera */}
@@ -170,22 +234,25 @@ export function ChatScreen() {
               <div className="text-[10px] text-muted-foreground">المحاور · أحمد</div>
             </div>
 
-            {/* 3D avatar - هنا تم استبدال أيقونة اليد بـ AvatarViewer */}
+            {/* 3D avatar */}
             <div className="relative mt-4 flex flex-1 items-center justify-center overflow-hidden rounded-2xl z-[999]"
               style={{ background: "oklch(0.95 0.02 295)" }}>
-              <AvatarViewer />
+              <AvatarViewer
+                shouldPlay={shouldPlayAvatar}
+                onAnimationEnd={() => setShouldPlayAvatar(false)}
+              />
               <div className="absolute right-3 top-3 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary backdrop-blur">
                 إشارة حية
               </div>
             </div>
 
-            {/* reply text */}
+            {/* رد الـ Agent — التعديل الوحيد: rows={4} */}
             <div className="relative mt-4 rounded-2xl bg-white/85 p-3 shadow-soft backdrop-blur">
               <textarea
                 dir="rtl"
-                value={replyText}
+                value={isLoadingAgent ? "جاري الرد..." : replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                rows={2}
+                rows={4}
                 className="w-full resize-none bg-transparent pl-7 text-right text-base font-medium leading-snug text-foreground outline-none"
               />
               <button
@@ -205,6 +272,7 @@ export function ChatScreen() {
                 dir="rtl"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder="اكتب لتحويل النص إلى إشارة..."
                 className="flex-1 bg-transparent px-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
@@ -216,7 +284,11 @@ export function ChatScreen() {
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
-              <button className="grid h-9 w-9 place-items-center rounded-full grad-purple shadow-soft">
+              <button
+                onClick={handleSend}
+                disabled={isLoadingAgent}
+                className="grid h-9 w-9 place-items-center rounded-full grad-purple shadow-soft disabled:opacity-50"
+              >
                 <Send className="h-4 w-4 text-white" />
               </button>
             </div>
