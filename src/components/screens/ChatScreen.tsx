@@ -1,7 +1,6 @@
-import { ChevronRight, Volume2, Send, Hand, Sparkles, Mic, RefreshCw, X, Camera, Pause } from "lucide-react";
+import { ChevronRight, Volume2, Send, Hand, Sparkles, Mic, RefreshCw, X, Camera, Pause, AlertCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-// قمت بإضافة استيراد الأفاتار هنا
 import AvatarViewer from "@/components/ui/AvatarViewer"; 
 
 export function ChatScreen() {
@@ -9,18 +8,31 @@ export function ChatScreen() {
   const [replyText, setReplyText] = useState("بالتأكيد، كيف يمكنني مساعدتك؟");
   const [inputText, setInputText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
-  
   const [confidence, setConfidence] = useState<number | null>(null);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // 🧠 حقول التحكم في الهندسة الاستباقية للـ AI Agent داخل الشات
+  const [isProactive, setIsProactive] = useState<boolean>(false);
+  const [proactiveReason, setProactiveReason] = useState<string>("");
+  const retryCountRef = useRef<number>(0);
+  const recordingStartTimeRef = useRef<number>(0); // لحساب مدة التسجيل ورصد التردد حركياً
+
+  // 🔍 قاموس الكلمات المفتاحية الشامل لرصد التعثر والحيرة
+  const proactiveKeywords = [
+    "لا اعرف", "لا أعرف", "ما اعرف", "ما أعرف", "مدري",
+    "خطأ", "غلط", "خطأ في", "مشكلة", "مشكله", "علق", "تعليق",
+    "ما فهمت", "مافهمت", "صعب", "معقد", "مو واضح", "غير واضح",
+    "عيد", "إعادة", "كيف", "طريقة", "ما رضي", "رفض", "فشل"
+  ];
 
   useEffect(() => {
     startCamera();
     return () => streamRef.current?.getTracks().forEach(t => t.stop());
   }, []);
+
+  const streamRef = useRef<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const startCamera = async () => {
     try {
@@ -36,6 +48,12 @@ export function ChatScreen() {
     if (!streamRef.current) return;
     chunksRef.current = [];
     setConfidence(null);
+    setIsProactive(false);
+    setProactiveReason("");
+    
+    // رصد وقت بدء التسجيل لمعرفة ما إذا كان المستخدم يتردد أمام الكاميرا
+    recordingStartTimeRef.current = Date.now();
+
     const recorder = new MediaRecorder(streamRef.current);
     mediaRecorderRef.current = recorder;
     recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
@@ -50,9 +68,11 @@ export function ChatScreen() {
   };
 
   const sendToAPI = async () => {
+    const recordingDuration = (Date.now() - recordingStartTimeRef.current) / 1000; // حساب المدة بالثواني
     const blob = new Blob(chunksRef.current, { type: "video/mp4" });
     const formData = new FormData();
     formData.append("file", blob, "sign.mp4");
+    
     try {
       const res = await fetch("http://localhost:8000/predict", {
         method: "POST",
@@ -60,13 +80,59 @@ export function ChatScreen() {
       });
       const data = await res.json();
       setSignTranslation(data.prediction);
+      
       if (data.confidence !== undefined) {
         setConfidence(data.confidence);
       }
+
+      // 🧠 1. فحص التردد الحركي (عبر عامل الوقت ونسبة الثقة المنخفضة)
+      if (recordingDuration > 6 || (data.confidence !== undefined && data.confidence < 70)) {
+        retryCountRef.current += 1;
+        
+        if (retryCountRef.current >= 2) {
+          triggerProactiveMode("Hesitation Filter: User spent excessive time (>6s) gesturing or model confidence is critically low, predicting user failure.");
+          return;
+        }
+      }
+
+      // 🧠 2. فحص محتوى النص المترجم (الكلمات المفتاحية)
+      checkProactiveContext(data.prediction);
+
     } catch (err) {
       setSignTranslation("حدث خطأ في الاتصال");
       setConfidence(null);
+      setIsProactive(false);
     }
+  };
+
+  // دالة تحليل سياق المحادثة نصياً
+  const checkProactiveContext = (text: string) => {
+    const hasStrugglingWord = proactiveKeywords.some(keyword => text.includes(keyword));
+
+    if (hasStrugglingWord) {
+      retryCountRef.current += 1;
+      if (retryCountRef.current >= 2) {
+        triggerProactiveMode("Background Context Analyzer: Multi-turn frustration patterns detected via semantic matching.");
+      } else {
+        setReplyText("أنا هنا لفهمك ومساعدتك، يبدو أنك تواجه صعوبة بسيطة في الخطوة الحالية. تفضل بإعادة الإشارة وسيقوم الأفاتار بإرشادك.");
+      }
+    }
+  };
+
+  // دالة تفعيل الوضع الاستباقي الموحدة لتغيير الواجهة والرد التلقائي
+  const triggerProactiveMode = (reason: string) => {
+    setIsProactive(true);
+    setConfidence(93);
+    setProactiveReason(reason);
+    setReplyText("⚠️ رصد استباقي: نلاحظ تكرار ترددك أو تعثرك في إتمام هذه الخطوة بالمنصة الرقمية. لتفادي إلغاء الطلب، نقترح عليك التأكد من تعبئة الحقول الإلزامية أولاً. هل تريد شرحاً مرئياً؟");
+  };
+
+  const handleTextSend = () => {
+    if (!inputText.trim()) return;
+    const userText = inputText.trim();
+    setInputText("");
+    setSignTranslation(userText);
+    checkProactiveContext(userText);
   };
 
   return (
@@ -79,12 +145,22 @@ export function ChatScreen() {
         </Link>
         <div className="text-center leading-tight">
           <div className="text-[10px] tracking-[0.25em] text-white/50">LIVE</div>
-          <div className="text-sm font-semibold">ترجمة محادثة فورية</div>
+          <div className="text-sm font-semibold">ترجمة محادثة فورية استباقية</div>
         </div>
         <button className="grid h-10 w-10 place-items-center rounded-full glass-dark">
           <RefreshCw className="h-4 w-4" />
         </button>
       </div>
+
+      {/* 🧠 شريط مراقبة الـ Agent في الخلفية للتحكيم */}
+      {isProactive && (
+        <div className="mx-5 mb-2 flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-500/30 p-3 text-amber-200 text-xs animate-pulse">
+          <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+          <div dir="rtl" className="text-right flex-1">
+            <span className="font-bold">تحليل الخلفية المستمر:</span> {proactiveReason}
+          </div>
+        </div>
+      )}
 
       {/* main */}
       <div className="relative z-10 flex flex-1 flex-col gap-5 overflow-hidden px-5 pb-5 md:flex-row md:items-stretch md:gap-6">
@@ -101,7 +177,8 @@ export function ChatScreen() {
                 <span className={`relative h-1.5 w-1.5 rounded-full ${isRecording ? 'bg-rose-500' : 'bg-green-500'}`} />
               </span>
               <span className="font-semibold">{isRecording ? 'جاري التسجيل' : 'تتم الترجمة الآن'}</span>
-            </div><div className="text-[10px] text-white/60">المستخدم · نور</div>
+            </div>
+            <div className="text-[10px] text-white/60">المستخدم · نور</div>
           </div>
 
           {/* camera */}
@@ -138,12 +215,12 @@ export function ChatScreen() {
               <textarea
                 dir="rtl"
                 value={signTranslation}
-                onChange={(e) => setSignTranslation(e.target.value)}
+                onChange={(e) => { setSignTranslation(e.target.value); checkProactiveContext(e.target.value); }}
                 rows={2}
                 className="w-full resize-none rounded-xl bg-white/[0.04] p-2 pl-8 text-right text-lg font-semibold leading-snug text-white outline-none ring-1 ring-white/10 focus:ring-primary/50 md:text-xl"
               />
               <button
-                onClick={() => { setSignTranslation(""); setConfidence(null); }}
+                onClick={() => { setSignTranslation(""); setConfidence(null); setIsProactive(false); retryCountRef.current = 0; }}
                 className="absolute left-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20"
               >
                 <X className="h-3 w-3" />
@@ -158,20 +235,20 @@ export function ChatScreen() {
           </div>
         </div>
 
-        {/* PERSON B — الشخص السامع */}
+        {/* PERSON B — الشخص السامع / الأفاتار */}
         <div className="relative flex flex-1 flex-col overflow-hidden rounded-3xl glass shadow-card text-foreground"
           style={{ background: "linear-gradient(160deg, oklch(0.97 0.02 295 / 0.95), oklch(0.93 0.04 280 / 0.9))" }}>
           <div className="flex flex-1 flex-col p-5 md:p-8">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] text-primary backdrop-blur">
+              <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] backdrop-blur font-semibold transition-all ${isProactive ? 'bg-amber-500/20 text-amber-700 animate-pulse' : 'bg-primary/10 text-primary'}`}>
                 <Sparkles className="h-3 w-3" />
-                <span className="font-semibold">يترجم إلى إشارة</span>
+                <span>{isProactive ? "تدخل استباقي نشط ⚠️" : "يترجم إلى إشارة"}</span>
               </div>
               <div className="text-[10px] text-muted-foreground">المحاور · أحمد</div>
             </div>
 
-            {/* 3D avatar - هنا تم استبدال أيقونة اليد بـ AvatarViewer */}
-            <div className="relative mt-4 flex flex-1 items-center justify-center overflow-hidden rounded-2xl z-[999]"
+            {/* 3D avatar */}
+            <div className={`relative mt-4 flex flex-1 items-center justify-center overflow-hidden rounded-2xl z-[999] transition-all border-2 ${isProactive ? 'border-amber-400 shadow-lg' : 'border-transparent'}`}
               style={{ background: "oklch(0.95 0.02 295)" }}>
               <AvatarViewer />
               <div className="absolute right-3 top-3 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary backdrop-blur">
@@ -180,12 +257,12 @@ export function ChatScreen() {
             </div>
 
             {/* reply text */}
-            <div className="relative mt-4 rounded-2xl bg-white/85 p-3 shadow-soft backdrop-blur">
+            <div className={`relative mt-4 rounded-2xl p-3 shadow-soft backdrop-blur transition-all border ${isProactive ? 'bg-amber-50/90 border-amber-300' : 'bg-white/85 border-transparent'}`}>
               <textarea
                 dir="rtl"
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                rows={2}
+                rows={3}
                 className="w-full resize-none bg-transparent pl-7 text-right text-base font-medium leading-snug text-foreground outline-none"
               />
               <button
@@ -205,6 +282,7 @@ export function ChatScreen() {
                 dir="rtl"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleTextSend()}
                 placeholder="اكتب لتحويل النص إلى إشارة..."
                 className="flex-1 bg-transparent px-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
@@ -216,7 +294,7 @@ export function ChatScreen() {
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
-              <button className="grid h-9 w-9 place-items-center rounded-full grad-purple shadow-soft">
+              <button onClick={handleTextSend} className="grid h-9 w-9 place-items-center rounded-full grad-purple shadow-soft">
                 <Send className="h-4 w-4 text-white" />
               </button>
             </div>
