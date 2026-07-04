@@ -1,22 +1,26 @@
-import { ChevronRight, Volume2, Send, Hand, Sparkles, Mic, RefreshCw, X, Camera, Pause, AlertCircle } from "lucide-react";
+import { ChevronRight, Volume2, Send, Sparkles, Mic, RefreshCw, X, Camera, Pause, AlertCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
-import AvatarViewer from "@/components/ui/AvatarViewer"; 
+import { useState, useRef, useEffect, useCallback } from "react";
+import AvatarViewer from "@/components/ui/AvatarViewer";
 
 export function ChatScreen() {
   const [signTranslation, setSignTranslation] = useState("في انتظار الإشارة...");
   const [replyText, setReplyText] = useState("بالتأكيد، كيف يمكنني مساعدتك؟");
   const [inputText, setInputText] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
   const [confidence, setConfidence] = useState<number | null>(null);
-
-  // 🧠 حقول التحكم في الهندسة الاستباقية للـ AI Agent داخل الشات
   const [isProactive, setIsProactive] = useState<boolean>(false);
   const [proactiveReason, setProactiveReason] = useState<string>("");
-  const retryCountRef = useRef<number>(0);
-  const recordingStartTimeRef = useRef<number>(0); // لحساب مدة التسجيل ورصد التردد حركياً
 
-  // 🔍 قاموس الكلمات المفتاحية الشامل لرصد التعثر والحيرة
+  const retryCountRef = useRef<number>(0);
+  const recordingStartTimeRef = useRef<number>(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const handsRef = useRef<any>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const lastPredictTime = useRef<number>(0);
+  const isDetectingRef = useRef(false);
+
   const proactiveKeywords = [
     "لا اعرف", "لا أعرف", "ما اعرف", "ما أعرف", "مدري",
     "خطأ", "غلط", "خطأ في", "مشكلة", "مشكله", "علق", "تعليق",
@@ -25,101 +29,131 @@ export function ChatScreen() {
   ];
 
   useEffect(() => {
-    startCamera();
-    return () => streamRef.current?.getTracks().forEach(t => t.stop());
+    const loadMediaPipe = () => {
+      return new Promise<void>((resolve) => {
+        if ((window as any).Hands) { resolve(); return; }
+        const s1 = document.createElement("script");
+        s1.src = "https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js";
+        s1.crossOrigin = "anonymous";
+        s1.onload = () => {
+          const s2 = document.createElement("script");
+          s2.src = "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
+          s2.crossOrigin = "anonymous";
+          s2.onload = () => resolve();
+          document.head.appendChild(s2);
+        };
+        document.head.appendChild(s1);
+      });
+    };
+
+    loadMediaPipe().then(() => {
+      const Hands = (window as any).Hands;
+      const mpHands = new Hands({
+        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+      });
+      mpHands.setOptions({
+        maxNumHands: 2,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      });
+      mpHands.onResults((results: any) => {
+        if (!isDetectingRef.current) return;
+        if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
+        const now = Date.now();
+        if (now - lastPredictTime.current < 1500) return;
+        lastPredictTime.current = now;
+        const landmarks = results.multiHandLandmarks[0];
+        const flat = landmarks.map((lm: any) => [lm.x, lm.y, lm.z]).flat();
+        sendLandmarksToAPI(flat);
+      });
+      handsRef.current = mpHands;
+    });
+
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
   }, []);
 
-  const streamRef = useRef<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const processFrame = useCallback(async () => {
+    if (!isDetectingRef.current || !handsRef.current || !videoRef.current) return;
+    await handsRef.current.send({ image: videoRef.current });
+    animFrameRef.current = requestAnimationFrame(processFrame);
+  }, []);
 
-  const startCamera = async () => {
+  const startDetection = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      isDetectingRef.current = true;
+      setIsDetecting(true);
+      recordingStartTimeRef.current = Date.now();
+      animFrameRef.current = requestAnimationFrame(processFrame);
     } catch (err) {
       console.error("خطأ في الكاميرا:", err);
     }
-  };
+  }, [processFrame]);
 
-  const startRecording = () => {
-    if (!streamRef.current) return;
-    chunksRef.current = [];
-    setConfidence(null);
-    setIsProactive(false);
-    setProactiveReason("");
-    
-    // رصد وقت بدء التسجيل لمعرفة ما إذا كان المستخدم يتردد أمام الكاميرا
-    recordingStartTimeRef.current = Date.now();
+  const stopDetection = useCallback(() => {
+    isDetectingRef.current = false;
+    setIsDetecting(false);
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+  }, []);
 
-    const recorder = new MediaRecorder(streamRef.current);
-    mediaRecorderRef.current = recorder;
-    recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-    recorder.onstop = sendToAPI;
-    recorder.start();
-    setIsRecording(true);
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  };
-
-  const sendToAPI = async () => {
-    const recordingDuration = (Date.now() - recordingStartTimeRef.current) / 1000; // حساب المدة بالثواني
-    const blob = new Blob(chunksRef.current, { type: "video/mp4" });
-    const formData = new FormData();
-    formData.append("file", blob, "sign.mp4");
-    
+  const sendLandmarksToAPI = async (landmarks: number[]) => {
     try {
-      const res = await fetch("http://localhost:8000/predict", {
+      const res = await fetch("http://localhost:8000/predict-landmarks", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ landmarks }),
       });
       const data = await res.json();
-      setSignTranslation(data.prediction);
-      
-      if (data.confidence !== undefined) {
-        setConfidence(data.confidence);
-      }
+      console.log("prediction:", data.prediction, "confidence:", data.confidence);
 
-      // 🧠 1. فحص التردد الحركي (عبر عامل الوقت ونسبة الثقة المنخفضة)
-      if (recordingDuration > 6 || (data.confidence !== undefined && data.confidence < 70)) {
-        retryCountRef.current += 1;
-        
-        if (retryCountRef.current >= 2) {
-          triggerProactiveMode("Hesitation Filter: User spent excessive time (>6s) gesturing or model confidence is critically low, predicting user failure.");
-          return;
+      if (data.prediction && data.prediction !== "لم يتم التعرف على إشارة") {
+        setSignTranslation(data.prediction);
+        if (data.confidence !== undefined) setConfidence(data.confidence);
+
+        // فحص الترددات
+        const recordingDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
+        if (recordingDuration > 6 || (data.confidence !== undefined && data.confidence < 70)) {
+          retryCountRef.current += 1;
+          if (retryCountRef.current >= 2) {
+            triggerProactiveMode("Hesitation Filter: تردد المستخدم أو ثقة منخفضة.");
+            return;
+          }
+        }
+
+        checkProactiveContext(data.prediction);
+
+        if (data.prediction === "السلام_عليكم" || data.prediction === "السلام عليكم") {
+          console.log("dispatching playAvatar event!");
+          window.dispatchEvent(new CustomEvent("playAvatar"));
         }
       }
-
-      // 🧠 2. فحص محتوى النص المترجم (الكلمات المفتاحية)
-      checkProactiveContext(data.prediction);
-
     } catch (err) {
-      setSignTranslation("حدث خطأ في الاتصال");
-      setConfidence(null);
-      setIsProactive(false);
+      console.error("خطأ في الاتصال بالـ API:", err);
     }
   };
 
-  // دالة تحليل سياق المحادثة نصياً
   const checkProactiveContext = (text: string) => {
     const hasStrugglingWord = proactiveKeywords.some(keyword => text.includes(keyword));
-
     if (hasStrugglingWord) {
       retryCountRef.current += 1;
       if (retryCountRef.current >= 2) {
-        triggerProactiveMode("Background Context Analyzer: Multi-turn frustration patterns detected via semantic matching.");
+        triggerProactiveMode("Background Context Analyzer: تكرار تعثر المستخدم.");
       } else {
         setReplyText("أنا هنا لفهمك ومساعدتك، يبدو أنك تواجه صعوبة بسيطة في الخطوة الحالية. تفضل بإعادة الإشارة وسيقوم الأفاتار بإرشادك.");
       }
     }
   };
 
-  // دالة تفعيل الوضع الاستباقي الموحدة لتغيير الواجهة والرد التلقائي
   const triggerProactiveMode = (reason: string) => {
     setIsProactive(true);
     setConfidence(93);
@@ -152,7 +186,7 @@ export function ChatScreen() {
         </button>
       </div>
 
-      {/* 🧠 شريط مراقبة الـ Agent في الخلفية للتحكيم */}
+      {/* شريط مراقبة الـ Agent */}
       {isProactive && (
         <div className="mx-5 mb-2 flex items-center gap-2 rounded-xl bg-amber-500/20 border border-amber-500/30 p-3 text-amber-200 text-xs animate-pulse">
           <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
@@ -165,7 +199,7 @@ export function ChatScreen() {
       {/* main */}
       <div className="relative z-10 flex flex-1 flex-col gap-5 overflow-hidden px-5 pb-5 md:flex-row md:items-stretch md:gap-6">
 
-        {/* PERSON A — الشخص الأصم */}
+        {/* PERSON A */}
         <div className="relative flex flex-1 flex-col overflow-hidden rounded-3xl glass-dark p-5 md:p-8 shadow-card">
           <div className="absolute inset-0 opacity-80"
             style={{ background: "linear-gradient(160deg, oklch(0.32 0.16 290), oklch(0.18 0.13 280))" }} />
@@ -173,15 +207,14 @@ export function ChatScreen() {
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] backdrop-blur">
               <span className="relative grid h-1.5 w-1.5 place-items-center">
-                <span className={`absolute inset-0 rounded-full ${isRecording ? 'animate-ping bg-rose-400' : 'bg-green-400'}`} />
-                <span className={`relative h-1.5 w-1.5 rounded-full ${isRecording ? 'bg-rose-500' : 'bg-green-500'}`} />
+                <span className={`absolute inset-0 rounded-full ${isDetecting ? 'animate-ping bg-rose-400' : 'bg-green-400'}`} />
+                <span className={`relative h-1.5 w-1.5 rounded-full ${isDetecting ? 'bg-rose-500' : 'bg-green-500'}`} />
               </span>
-              <span className="font-semibold">{isRecording ? 'جاري التسجيل' : 'تتم الترجمة الآن'}</span>
+              <span className="font-semibold">{isDetecting ? 'جاري الكشف...' : 'اضغط للبدء'}</span>
             </div>
             <div className="text-[10px] text-white/60">المستخدم · نور</div>
           </div>
 
-          {/* camera */}
           <div className="relative mt-4 flex flex-1 overflow-hidden rounded-2xl border border-white/15">
             <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
             <div className="absolute inset-x-6 top-4 h-px animate-scan rounded-full"
@@ -193,14 +226,13 @@ export function ChatScreen() {
               </div>
             </div>
             <button
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-glow transition-all ${isRecording ? 'bg-rose-500 text-white' : 'grad-purple text-white'}`}
+              onClick={isDetecting ? stopDetection : startDetection}
+              className={`absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-glow transition-all ${isDetecting ? 'bg-rose-500 text-white' : 'grad-purple text-white'}`}
             >
-              {isRecording ? <><Pause className="h-3.5 w-3.5" /> إيقاف</> : <><Camera className="h-3.5 w-3.5" /> تسجيل</>}
+              {isDetecting ? <><Pause className="h-3.5 w-3.5" /> إيقاف</> : <><Camera className="h-3.5 w-3.5" /> بدء الكشف</>}
             </button>
           </div>
 
-          {/* translated text */}
           <div className="relative mt-4 rounded-2xl bg-white/[0.07] p-4 backdrop-blur">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] text-white/60">
@@ -235,7 +267,7 @@ export function ChatScreen() {
           </div>
         </div>
 
-        {/* PERSON B — الشخص السامع / الأفاتار */}
+        {/* PERSON B */}
         <div className="relative flex flex-1 flex-col overflow-hidden rounded-3xl glass shadow-card text-foreground"
           style={{ background: "linear-gradient(160deg, oklch(0.97 0.02 295 / 0.95), oklch(0.93 0.04 280 / 0.9))" }}>
           <div className="flex flex-1 flex-col p-5 md:p-8">
@@ -247,7 +279,6 @@ export function ChatScreen() {
               <div className="text-[10px] text-muted-foreground">المحاور · أحمد</div>
             </div>
 
-            {/* 3D avatar */}
             <div className={`relative mt-4 flex flex-1 items-center justify-center overflow-hidden rounded-2xl z-[999] transition-all border-2 ${isProactive ? 'border-amber-400 shadow-lg' : 'border-transparent'}`}
               style={{ background: "oklch(0.95 0.02 295)" }}>
               <AvatarViewer />
@@ -256,7 +287,6 @@ export function ChatScreen() {
               </div>
             </div>
 
-            {/* reply text */}
             <div className={`relative mt-4 rounded-2xl p-3 shadow-soft backdrop-blur transition-all border ${isProactive ? 'bg-amber-50/90 border-amber-300' : 'bg-white/85 border-transparent'}`}>
               <textarea
                 dir="rtl"
@@ -273,7 +303,6 @@ export function ChatScreen() {
               </button>
             </div>
 
-            {/* input */}
             <div className="mt-3 flex items-center gap-2 rounded-full bg-white/90 p-2 shadow-soft backdrop-blur">
               <button className="grid h-9 w-9 place-items-center rounded-full bg-foreground/5">
                 <Mic className="h-4 w-4 text-foreground/70" />
@@ -282,7 +311,7 @@ export function ChatScreen() {
                 dir="rtl"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleTextSend()}
+                onKeyDown={(e) => e.key === "Enter" && handleTextSend()}
                 placeholder="اكتب لتحويل النص إلى إشارة..."
                 className="flex-1 bg-transparent px-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
@@ -294,7 +323,10 @@ export function ChatScreen() {
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
-              <button onClick={handleTextSend} className="grid h-9 w-9 place-items-center rounded-full grad-purple shadow-soft">
+              <button
+                onClick={handleTextSend}
+                className="grid h-9 w-9 place-items-center rounded-full grad-purple shadow-soft"
+              >
                 <Send className="h-4 w-4 text-white" />
               </button>
             </div>
