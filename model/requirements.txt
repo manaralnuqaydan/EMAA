@@ -1,4 +1,4 @@
-tensorflow
+tensorflow>=2.16
 fastapi
 uvicorn
 opencv-python
