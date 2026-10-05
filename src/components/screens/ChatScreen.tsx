@@ -20,6 +20,11 @@ export function ChatScreen() {
   const animFrameRef = useRef<number | null>(null);
   const lastPredictTime = useRef<number>(0);
   const isDetectingRef = useRef(false);
+  const cropCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  // الموديل يتعرف على حروف ArASL، فنجمعها هنا في كلمة
+  const wordRef = useRef<string>("");
+  const pendingLetterRef = useRef<string>("");
+  const committedLetterRef = useRef<string>("");
 
   const proactiveKeywords = [
     "لا اعرف", "لا أعرف", "ما اعرف", "ما أعرف", "مدري",
@@ -61,11 +66,10 @@ export function ChatScreen() {
         if (!isDetectingRef.current) return;
         if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) return;
         const now = Date.now();
-        if (now - lastPredictTime.current < 1500) return;
+        if (now - lastPredictTime.current < 700) return;
         lastPredictTime.current = now;
-        const landmarks = results.multiHandLandmarks[0];
-        const flat = landmarks.map((lm: any) => [lm.x, lm.y, lm.z]).flat();
-        sendLandmarksToAPI(flat);
+        const image = cropHand(results.multiHandLandmarks[0]);
+        if (image) sendImageToAPI(image);
       });
       handsRef.current = mpHands;
     });
@@ -106,19 +110,50 @@ export function ChatScreen() {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
   }, []);
 
-  const sendLandmarksToAPI = async (landmarks: number[]) => {
+  // يقص مربعًا حول اليد بحجم صور ArASL (64×64) ويرجعه كصورة JPEG
+  const cropHand = (landmarks: { x: number; y: number }[]) => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return null;
+    const xs = landmarks.map((lm) => lm.x * video.videoWidth);
+    const ys = landmarks.map((lm) => lm.y * video.videoHeight);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const size = Math.max(maxX - minX, maxY - minY) * 1.5;
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2 + size * 0.1; // صور ArASL تظهر جزءًا من المعصم
+    if (!cropCanvasRef.current) {
+      cropCanvasRef.current = document.createElement("canvas");
+      cropCanvasRef.current.width = 64;
+      cropCanvasRef.current.height = 64;
+    }
+    const ctx = cropCanvasRef.current.getContext("2d");
+    if (!ctx) return null;
+    ctx.fillStyle = "#808080";
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.drawImage(video, cx - size / 2, cy - size / 2, size, size, 0, 0, 64, 64);
+    return cropCanvasRef.current.toDataURL("image/jpeg", 0.9);
+  };
+
+  const sendImageToAPI = async (image: string) => {
     try {
-      const res = await fetch("http://localhost:8000/predict-landmarks", {
+      const res = await fetch("http://localhost:8000/predict-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ landmarks }),
+        body: JSON.stringify({ image }),
       });
       const data = await res.json();
       console.log("prediction:", data.prediction, "confidence:", data.confidence);
 
       if (data.prediction && data.prediction !== "لم يتم التعرف على إشارة") {
-        setSignTranslation(data.prediction);
         if (data.confidence !== undefined) setConfidence(data.confidence);
+        // نضيف الحرف بعد تكراره في قراءتين متتاليتين، ولا نكرره حتى يتغير
+        const letter: string = data.prediction;
+        const isStable = letter === pendingLetterRef.current;
+        pendingLetterRef.current = letter;
+        if (!isStable || letter === committedLetterRef.current) return;
+        committedLetterRef.current = letter;
+        wordRef.current += letter;
+        setSignTranslation(wordRef.current);
 
         // فحص الترددات
         const recordingDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
@@ -130,9 +165,9 @@ export function ChatScreen() {
           }
         }
 
-        checkProactiveContext(data.prediction);
+        checkProactiveContext(wordRef.current);
 
-        if (data.prediction === "السلام_عليكم" || data.prediction === "السلام عليكم") {
+        if (wordRef.current.endsWith("سلام")) {
           console.log("dispatching playAvatar event!");
           window.dispatchEvent(new CustomEvent("playAvatar"));
         }
@@ -166,6 +201,7 @@ export function ChatScreen() {
     const userText = inputText.trim();
     setInputText("");
     setSignTranslation(userText);
+    wordRef.current = userText;
     checkProactiveContext(userText);
   };
 
@@ -247,12 +283,12 @@ export function ChatScreen() {
               <textarea
                 dir="rtl"
                 value={signTranslation}
-                onChange={(e) => { setSignTranslation(e.target.value); checkProactiveContext(e.target.value); }}
+                onChange={(e) => { setSignTranslation(e.target.value); wordRef.current = e.target.value; checkProactiveContext(e.target.value); }}
                 rows={2}
                 className="w-full resize-none rounded-xl bg-white/[0.04] p-2 pl-8 text-right text-lg font-semibold leading-snug text-white outline-none ring-1 ring-white/10 focus:ring-primary/50 md:text-xl"
               />
               <button
-                onClick={() => { setSignTranslation(""); setConfidence(null); setIsProactive(false); retryCountRef.current = 0; }}
+                onClick={() => { setSignTranslation(""); wordRef.current = ""; pendingLetterRef.current = ""; committedLetterRef.current = ""; setConfidence(null); setIsProactive(false); retryCountRef.current = 0; }}
                 className="absolute left-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20"
               >
                 <X className="h-3 w-3" />

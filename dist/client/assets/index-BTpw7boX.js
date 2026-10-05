@@ -1,1 +1,0 @@
-import{u as r,r as s,j as t}from"./index-CkVjIZMz.js";import{S as a}from"./ScreenStage-BdQ2J9-B.js";import{S as n}from"./SplashScreen-Df2_qThi.js";function p(){const e=r();return s.useEffect(()=>{const o=setTimeout(()=>e({to:"/home"}),2600);return()=>clearTimeout(o)},[e]),t.jsx(a,{label:"01 · Splash",caption:"شاشة البداية",children:t.jsx(n,{})})}export{p as component};

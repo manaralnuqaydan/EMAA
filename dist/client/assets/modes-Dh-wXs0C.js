@@ -1,1 +1,0 @@
-import{j as o}from"./index-CkVjIZMz.js";import{S as t}from"./ScreenStage-BdQ2J9-B.js";import{M as e}from"./ModeScreen-CVTw5uaQ.js";import"./chevron-right-BKGgZpQv.js";import"./createLucideIcon-CfKnQtVR.js";const i=()=>o.jsx(t,{label:"03 · Modes",caption:"اختيار وضع الترجمة",children:o.jsx(e,{})});export{i as component};

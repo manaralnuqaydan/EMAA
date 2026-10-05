@@ -1,46 +1,31 @@
-import cv2
-import mediapipe as mp
-import numpy as np
+import argparse
 import os
-import pickle
 
-mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2, min_detection_confidence=0.3)
+import cv2
+import numpy as np
 
-DATA_DIR = './videos'
+from labels import ARASL_LABELS, IMG_SIZE
 
-data = []
-labels = []
+# يحوّل صور ArASL (مجلد لكل فئة) إلى ملف data.npz واحد للتدريب
+parser = argparse.ArgumentParser()
+parser.add_argument('--data-dir', default='./ArASL_Database_54K_Final')
+args = parser.parse_args()
 
-for label in os.listdir(DATA_DIR):
-    label_path = os.path.join(DATA_DIR, label)
-    if not os.path.isdir(label_path):
+images, labels = [], []
+for root, _, files in os.walk(args.data_dir):
+    folder = os.path.basename(root)
+    if folder not in ARASL_LABELS:
         continue
-    for video_file in os.listdir(label_path):
-        video_path = os.path.join(label_path, video_file)
-        cap = cv2.VideoCapture(video_path)
-        frame_landmarks = []
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = hands.process(frame_rgb)
-            if results.multi_hand_landmarks:
-                for hand_landmarks in results.multi_hand_landmarks:
-                    lm = []
-                    for landmark in hand_landmarks.landmark:
-                        lm.extend([landmark.x, landmark.y, landmark.z])
-                    frame_landmarks.append(lm)
-        cap.release()
-        
-        if frame_landmarks:
-            for lm in frame_landmarks:
-                data.append(lm)
-                labels.append(label)
-            print(f"✅ {label} - {video_file} (تم استخراج {len(frame_landmarks)} فريم)")
+    for name in files:
+        img = cv2.imread(os.path.join(root, name), cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            continue
+        images.append(cv2.resize(img, (IMG_SIZE, IMG_SIZE)))
+        labels.append(folder)
+    print(f"✅ {folder} ({ARASL_LABELS[folder]}): {len(files)} صورة")
 
-with open('data.pkl', 'wb') as f:
-    pickle.dump({'data': data, 'labels': labels}, f)
+classes = sorted(ARASL_LABELS)
+y = np.array([classes.index(label) for label in labels], dtype=np.int64)
+np.savez_compressed('data.npz', x=np.array(images, dtype=np.uint8), y=y, classes=np.array(classes))
 
-print(f"\nتم! إجمالي عدد الفريمات/العينات المستخرجة: {len(data)}")
+print(f"\nتم! إجمالي الصور: {len(images)} في {len(set(labels))} فئة")

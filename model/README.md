@@ -1,0 +1,23 @@
+# موديل التعرف على حروف لغة الإشارة (ArASL)
+
+الموديل شبكة CNN مدرّبة على داتا [ArASL](https://www.kaggle.com/datasets/gannayasser/arabic-alphabets-sign-language-dataset-arasl)
+(54,049 صورة رمادية 64×64، 32 فئة: الحروف + ال، لا، ة). الداتا برخصة CC BY 4.0.
+
+## التدريب
+
+```bash
+pip install -r requirements.txt
+# فك ضغط الداتا داخل مجلد model بحيث يكون فيه ArASL_Database_54K_Final/
+python extract.py   # يحوّل الصور إلى data.npz
+python train.py     # يدرّب ويحفظ model.keras و classes.json
+```
+
+## التشغيل
+
+```bash
+uvicorn api:app --port 8000
+```
+
+الواجهة (`ChatScreen.tsx`) تكتشف اليد بـ MediaPipe في المتصفح، تقص صورة اليد 64×64،
+وترسلها إلى `POST /predict-image` بالشكل `{"image": "data:image/jpeg;base64,..."}`.
+الرد `{"prediction": "ب", "confidence": 97.3}`، والواجهة تجمع الحروف إلى كلمة.

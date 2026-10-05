@@ -1,44 +1,77 @@
-import pickle
+import json
+
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+import tensorflow as tf
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 
-with open('data.pkl', 'rb') as f:
-    dataset = pickle.load(f)
+from labels import ARASL_LABELS, IMG_SIZE
 
-data = np.array(dataset['data'])
-labels = np.array(dataset['labels'])
+dataset = np.load('data.npz')
+x = dataset['x'][..., None]
+y = dataset['y']
+classes = list(dataset['classes'])
 
-# Data Augmentation
-augmented_data = []
-augmented_labels = []
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42, stratify=y)
+x_train, x_val, y_train, y_val = train_test_split(
+    x_train, y_train, test_size=0.1, random_state=42, stratify=y_train
+)
+print(f"تدريب: {len(x_train)}، تحقق: {len(x_val)}، اختبار: {len(x_test)}")
 
-for i in range(len(data)):
-    augmented_data.append(data[i])
-    augmented_labels.append(labels[i])
-    for _ in range(9):
-        noise = np.random.normal(0, 0.01, data[i].shape)
-        augmented_data.append(data[i] + noise)
-        augmented_labels.append(labels[i])
+# Data Augmentation: يد يمنى أو يسرى، ميلان بسيط، تقريب، إضاءة مختلفة
+augment = tf.keras.Sequential([
+    tf.keras.layers.RandomFlip('horizontal'),
+    tf.keras.layers.RandomRotation(0.08),
+    tf.keras.layers.RandomZoom(0.1),
+    tf.keras.layers.RandomTranslation(0.08, 0.08),
+    tf.keras.layers.RandomContrast(0.3),
+    tf.keras.layers.RandomBrightness(0.2, value_range=(0, 1)),
+])
 
-augmented_data = np.array(augmented_data)
-augmented_labels = np.array(augmented_labels)
 
-print(f"عدد العينات بعد التضخيم: {len(augmented_data)}")
+def conv_block(filters):
+    return [
+        tf.keras.layers.Conv2D(filters, 3, padding='same', use_bias=False),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.ReLU(),
+        tf.keras.layers.Conv2D(filters, 3, padding='same', use_bias=False),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.ReLU(),
+        tf.keras.layers.MaxPooling2D(),
+    ]
 
-x_train, x_test, y_train, y_test = train_test_split(
-    augmented_data, augmented_labels, test_size=0.2, random_state=42
+
+model = tf.keras.Sequential([
+    tf.keras.Input((IMG_SIZE, IMG_SIZE, 1)),
+    tf.keras.layers.Rescaling(1 / 255),
+    augment,
+    *conv_block(32),
+    *conv_block(64),
+    *conv_block(128),
+    tf.keras.layers.GlobalAveragePooling2D(),
+    tf.keras.layers.Dropout(0.4),
+    tf.keras.layers.Dense(len(classes), activation='softmax'),
+])
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+model.fit(
+    x_train, y_train,
+    validation_data=(x_val, y_val),
+    epochs=25,
+    batch_size=128,
+    callbacks=[
+        tf.keras.callbacks.ReduceLROnPlateau(patience=2, factor=0.5),
+        tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True),
+    ],
 )
 
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(x_train, y_train)
+_, accuracy = model.evaluate(x_test, y_test, verbose=0)
+print(f"دقة الموديل على صور الاختبار: {accuracy * 100:.2f}%")
+y_pred = model.predict(x_test, verbose=0).argmax(axis=1)
+print(classification_report(y_test, y_pred, target_names=[ARASL_LABELS[c] for c in classes]))
 
-y_pred = model.predict(x_test)
-accuracy = accuracy_score(y_test, y_pred)
-print(f"دقة الموديل: {accuracy * 100:.2f}%")
+model.save('model.keras')
+with open('classes.json', 'w', encoding='utf-8') as f:
+    json.dump([ARASL_LABELS[c] for c in classes], f, ensure_ascii=False)
 
-with open('model.pkl', 'wb') as f:
-    pickle.dump(model, f)
-
-print("✅ تم حفظ الموديل في model.pkl")
+print("✅ تم حفظ الموديل في model.keras والحروف في classes.json")
