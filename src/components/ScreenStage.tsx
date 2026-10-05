@@ -8,7 +8,7 @@ interface Props {
 
 export function ScreenStage({ children }: Props) {
   return (
-    <div className="h-dvh w-full overflow-hidden" dir="rtl">
+    <div className="h-dvh w-full overflow-x-hidden overflow-y-auto" dir="rtl">
       {children}
     </div>
   );

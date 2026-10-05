@@ -38,7 +38,8 @@ async def predict_image(data: ImageInput):
         if img is None:
             return NO_SIGN
         img = cv2.resize(img, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_AREA)
-        probabilities = model.predict(img[None, ..., None], verbose=0)[0]
+        # استدعاء الموديل مباشرة أسرع بكثير من model.predict لصورة واحدة
+        probabilities = model(img[None, ..., None], training=False).numpy()[0]
         best = int(np.argmax(probabilities))
         return {"prediction": classes[best], "confidence": float(probabilities[best]) * 100}
     except Exception:

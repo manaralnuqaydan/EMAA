@@ -1,4 +1,4 @@
-import { Camera, Home, Sparkles, MessageCircle } from "lucide-react";
+import { Camera, Home, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 export function HomeScreen() {
@@ -66,26 +66,13 @@ export function HomeScreen() {
         <div className="absolute inset-x-5 bottom-5">
           <div className="glass shadow-card flex items-center justify-center rounded-3xl px-2 py-3">
             <Link
-              to="/"
+              to="/home"
               className="relative flex flex-col items-center gap-1 px-6 py-1"
               aria-label="الرئيسية"
             >
               <div className="absolute -top-1 h-1 w-6 rounded-full grad-purple" />
               <Home className="h-5 w-5 text-primary" strokeWidth={2.2} />
               <span className="text-[9px] font-semibold text-primary">الرئيسية</span>
-            </Link>
-
-            <div className="w-px h-6 bg-foreground/10" />
-
-            {/* الدعم — يسار */}
-            <Link
-              to="/quick-scenarios"
-              className="relative flex flex-col items-center gap-1 px-6 py-1"
-              aria-label="الدعم"
-            >
-              <div className="absolute -top-1 h-1 w-6 rounded-full grad-purple" />
-              <MessageCircle className="h-5 w-5 text-primary" strokeWidth={2.2} />
-              <span className="text-[9px] font-semibold text-primary">الدعم</span>
             </Link>
 
           </div>

@@ -4,9 +4,16 @@ import { useFBX } from "@react-three/drei";
 import * as THREE from "three";
 
 const blockedLegTracks = [
-  "leftupleg", "rightupleg", "leftleg", "rightleg",
-  "leftfoot", "rightfoot", "lefttoebase", "righttoebase",
-  "lefttoe", "righttoe",
+  "leftupleg",
+  "rightupleg",
+  "leftleg",
+  "rightleg",
+  "leftfoot",
+  "rightfoot",
+  "lefttoebase",
+  "righttoebase",
+  "lefttoe",
+  "righttoe",
 ];
 
 function isLegTrack(trackName: string) {
@@ -14,34 +21,70 @@ function isLegTrack(trackName: string) {
   return blockedLegTracks.some((word) => name.includes(word));
 }
 
-function AvatarModel() {
+// وضعية وقوف طبيعية (الذراعان للأسفل) بدل وضعية T
+function applyRestPose(avatar: THREE.Object3D) {
+  const pose: [string, number][] = [
+    ["LeftArm", 1.4],
+    ["RightArm", 1.4],
+    ["LeftForeArm", -0.45],
+    ["RightForeArm", -0.45],
+  ];
+  pose.forEach(([name, x]) => {
+    const bone = avatar.getObjectByName(name);
+    if (bone) bone.rotation.x += x;
+  });
+}
+
+function AvatarModel({ action: currentAction }: { action?: string }) {
   const avatar = useFBX("/avatar.fbx");
   const mixer = useRef<THREE.AnimationMixer | null>(null);
   const action = useRef<THREE.AnimationAction | null>(null);
   const pendingPlay = useRef(false);
 
+  const play = () => {
+    if (action.current) {
+      action.current.reset();
+      action.current.play();
+    } else {
+      pendingPlay.current = true;
+    }
+  };
+
   useEffect(() => {
     if (!avatar) return;
-    avatar.traverse((object: any) => {
+    avatar.traverse((object: THREE.Object3D) => {
       object.frustumCulled = false;
-      if (object.isMesh) {
+      if ((object as THREE.Mesh).isMesh) {
         object.castShadow = true;
         object.receiveShadow = true;
+        // خريطة الشفافية في الملف تجعل الوجه شفافًا فيظهر الشماغ من خلفه، فنلغيها
+        const material = (object as THREE.Mesh)
+          .material as THREE.MeshPhongMaterial;
+        if (object.name === "Head_Mesh" && material.alphaMap) {
+          material.alphaMap = null;
+          material.transparent = false;
+          material.depthWrite = true;
+          material.needsUpdate = true;
+        }
       }
     });
+    if (!avatar.userData.restPoseApplied) {
+      applyRestPose(avatar);
+      avatar.userData.restPoseApplied = true;
+    }
 
     if (avatar.animations && avatar.animations.length > 0) {
       mixer.current = new THREE.AnimationMixer(avatar);
       const clip = avatar.animations[0].clone();
       clip.tracks = clip.tracks.filter((track) => !isLegTrack(track.name));
       action.current = mixer.current.clipAction(clip);
-      action.current.reset();
       action.current.setLoop(THREE.LoopOnce, 1);
-      action.current.clampWhenFinished = true;
+      // بعد انتهاء الإشارة يرجع الأفاتار لوضعية الوقوف
+      mixer.current.addEventListener("finished", () => action.current?.stop());
 
       if (pendingPlay.current) {
         pendingPlay.current = false;
-        console.log("playing pending animation!");
+        play();
       }
     }
 
@@ -50,47 +93,46 @@ function AvatarModel() {
         mixer.current.stopAllAction();
         mixer.current = null;
       }
+      action.current = null;
     };
   }, [avatar]);
 
   useEffect(() => {
-    const handler = () => {
-      if (action.current && mixer.current) {
-        action.current.reset();
-        action.current.play();
-        console.log("playing animation!");
-      } else {
-        pendingPlay.current = true;
-        console.log("avatar not ready, queued!");
-      }
-    };
-    window.addEventListener("playAvatar", handler);
-    return () => window.removeEventListener("playAvatar", handler);
+    window.addEventListener("playAvatar", play);
+    return () => window.removeEventListener("playAvatar", play);
   }, []);
+
+  useEffect(() => {
+    if (currentAction === "signing" || currentAction === "proactive_alert")
+      play();
+  }, [currentAction]);
 
   useFrame((_, delta) => {
     if (mixer.current) mixer.current.update(delta);
-
-    const fingerBones = [
-      "mixamorig6RightHandIndex1", "mixamorig6RightHandIndex2", "mixamorig6RightHandIndex3",
-      "mixamorigRightHandIndex1", "mixamorigRightHandIndex2", "mixamorigRightHandIndex3",
-    ];
-    fingerBones.forEach((boneName) => {
-      const bone = avatar.getObjectByName(boneName);
-      if (bone) bone.rotation.x = -0.6;
-    });
   });
 
-  return <primitive object={avatar} scale={0.017} position={[0, -1.55, 0]} />;
+  return <primitive object={avatar} scale={0.017} position={[0, -2.0, 0]} />;
 }
 
-export default function AvatarViewer() {
+export default function AvatarViewer({
+  currentAction,
+}: {
+  currentAction?: string;
+}) {
   return (
-    <Canvas camera={{ position: [0, 1, 5], fov: 45 }}>
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[2, 4, 2]} intensity={1} />
+    <Canvas
+      camera={{ position: [0, 0, 3.8], fov: 40 }}
+      gl={{ preserveDrawingBuffer: true }}
+    >
+      <ambientLight intensity={1.1} />
+      <directionalLight position={[2, 4, 3]} intensity={1.1} />
+      <directionalLight
+        position={[-3, 2, -2]}
+        intensity={0.4}
+        color="#c4b5fd"
+      />
       <Suspense fallback={null}>
-        <AvatarModel />
+        <AvatarModel action={currentAction} />
       </Suspense>
     </Canvas>
   );

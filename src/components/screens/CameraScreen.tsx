@@ -2,6 +2,7 @@ import { Volume2, Pause, ChevronRight, Sparkles, X, AlertCircle, Send } from "lu
 import { Link } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import AvatarViewer from "../ui/AvatarViewer";
+import { downloadText, speak, stopSpeaking } from "@/lib/speech";
 
 export function CameraScreen() {
   const [arabicText, setArabicText] = useState("مرحبًا، أنا مساعدك الذكي إيماء. كيف يمكنني مساعدتك اليوم؟");
@@ -14,6 +15,7 @@ export function CameraScreen() {
   const [proactiveReason, setProactiveReason] = useState<string>("");
   const [avatarAction, setAvatarAction] = useState<string>("idle");
   const retryCountRef = useRef<number>(0);
+  const logRef = useRef<string[]>([]);
 
   // 🔍 قاموس الكلمات المفتاحية الشامل لرصد التعثر والحيرة (Frustration & Hesitation Vocabulary)
   const proactiveKeywords = [
@@ -30,6 +32,8 @@ export function CameraScreen() {
     setInputText("");
     setIsProactive(false);
     setAvatarAction("signing"); // تشغيل حركة الإشارة فوراً عند الإرسال
+    window.dispatchEvent(new CustomEvent("playAvatar"));
+    logRef.current.push(`أنت: ${userMessage}`);
 
     // التحقق مما إذا كانت رسالة المستخدم تحتوي على أي من كلمات التعثر
     const hasStrugglingWord = proactiveKeywords.some(keyword => userMessage.includes(keyword));
@@ -65,8 +69,18 @@ export function CameraScreen() {
     }
   };
 
+  const saveConversation = () => {
+    const lines = [...logRef.current, `إيماء: ${arabicText}`];
+    downloadText(`emaa-${new Date().toISOString().slice(0, 10)}.txt`, lines.join("\n"));
+  };
+
+  const stopAll = () => {
+    stopSpeaking();
+    setAvatarAction("idle");
+  };
+
   return (
-    <div className="flex h-dvh w-full flex-col overflow-hidden text-white"
+    <div className="flex min-h-dvh w-full flex-col text-white md:h-dvh md:overflow-hidden"
       style={{ background: "linear-gradient(170deg, #1a1230 0%, #0a0617 100%)" }}>
       
       {/* header */}
@@ -97,14 +111,14 @@ export function CameraScreen() {
       )}
 
       {/* main content */}
-      <div className="relative z-10 flex flex-1 flex-col gap-5 overflow-hidden px-5 md:flex-row md:items-stretch md:gap-6 md:pb-5">
+      <div className="relative z-10 flex flex-1 flex-col gap-4 px-4 sm:px-5 md:min-h-0 md:flex-row md:items-stretch md:gap-6 md:pb-5">
 
         {/* 3D Avatar Box */}
         <div className={`relative flex flex-1 flex-col items-center justify-center rounded-3xl glass-dark p-5 md:p-8 overflow-hidden border transition-all duration-500 ${isProactive ? 'border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.15)]' : 'border-transparent'}`}>
           <div className="absolute inset-x-0 top-0 h-full"
             style={{ background: isProactive ? "radial-gradient(ellipse at center top, oklch(0.65 0.2 60 / 0.3), transparent 70%)" : "radial-gradient(ellipse at center top, oklch(0.5 0.22 295 / 0.55), transparent 70%)" }} />
           
-          <div className="relative z-[999] w-full h-64 flex items-center justify-center">
+          <div className="relative z-[999] flex h-72 w-full items-center justify-center sm:h-80 md:h-full">
             <AvatarViewer currentAction={avatarAction} />
           </div>
 
@@ -177,7 +191,7 @@ export function CameraScreen() {
                   style={{ height: h * 2, background: isProactive ? "linear-gradient(180deg, #f59e0b, #d97706)" : "linear-gradient(180deg, oklch(0.8 0.2 300), oklch(0.7 0.18 250))" }} />
               ))}
             </div>
-            <button className={`flex items-center gap-2 rounded-full px-5 py-2 text-xs font-bold shadow-glow transition-all ${isProactive ? 'bg-amber-600 text-white' : 'grad-purple text-white'}`}>
+            <button onClick={() => speak(arabicText)} className={`flex items-center gap-2 rounded-full px-5 py-2 text-xs font-bold shadow-glow transition-all ${isProactive ? 'bg-amber-600 text-white' : 'grad-purple text-white'}`}>
               <Volume2 className="h-4 w-4" /> تشغيل الصوت
             </button>
           </div>
@@ -186,13 +200,13 @@ export function CameraScreen() {
 
       {/* bottom controls */}
       <div className="relative z-20 flex w-full shrink-0 items-center justify-center gap-5 px-5 pb-6 pt-4">
-        <button className="grid h-12 w-12 place-items-center rounded-full glass-dark">
+        <button onClick={() => speak(arabicText)} aria-label="استماع" className="grid h-12 w-12 place-items-center rounded-full glass-dark">
           <Volume2 className="h-5 w-5" />
         </button>
-        <button className="grid h-16 w-16 place-items-center rounded-full bg-white text-deep shadow-glow">
+        <button onClick={stopAll} aria-label="إيقاف" className="grid h-16 w-16 place-items-center rounded-full bg-white text-deep shadow-glow">
           <Pause className="h-6 w-6 fill-current" />
         </button>
-        <button className="grid h-12 w-12 place-items-center rounded-full glass-dark text-[10px] font-bold">حفظ</button>
+        <button onClick={saveConversation} aria-label="حفظ المحادثة" className="grid h-12 w-12 place-items-center rounded-full glass-dark text-[10px] font-bold">حفظ</button>
       </div>
     </div>
   );

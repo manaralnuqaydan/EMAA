@@ -1,7 +1,7 @@
 import { ChevronRight, Type, Video, ArrowLeft } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import avatarFemale from "@/assets/avatar-female.png";
-import avatarMale from "@/assets/avatar-male.png";
+import avatarSaudi from "@/assets/avatar-saudi.png";
 
 export function ModeScreen() {
   return (
@@ -11,7 +11,7 @@ export function ModeScreen() {
       <div className="absolute bottom-0 -left-20 h-64 w-64 rounded-full opacity-50 blur-3xl"
         style={{ background: "radial-gradient(circle, oklch(0.8 0.1 245 / 0.7), transparent 70%)" }} />
 
-      <div className="relative z-10 flex h-full flex-col px-5 pb-8 pt-12">
+      <div className="relative z-10 mx-auto flex h-full w-full max-w-xl flex-col px-5 pb-8 pt-12">
         <div className="flex items-center justify-between">
           <Link to="/home" className="grid h-10 w-10 place-items-center rounded-full glass shadow-soft" aria-label="رجوع">
             <ChevronRight className="h-4 w-4 text-foreground/70" />
@@ -45,7 +45,7 @@ export function ModeScreen() {
               <div className="relative h-24 w-24 shrink-0">
                 <div className="absolute inset-0 rounded-3xl opacity-80"
                   style={{ background: "linear-gradient(160deg, oklch(0.9 0.08 295), oklch(0.85 0.1 270))" }} />
-                <img src={avatarFemale} alt="" loading="lazy" width={200} height={200} className="absolute inset-0 h-full w-full object-cover object-top rounded-3xl" />
+                <img src={avatarSaudi} alt="" loading="lazy" width={200} height={200} className="absolute inset-0 h-full w-full object-cover object-top rounded-3xl" />
               </div>
             </div>
           </div>
@@ -63,7 +63,7 @@ export function ModeScreen() {
                 </div>
                 <h3 className="mt-2 text-lg font-black leading-tight">إشارة فورية إلى نص وصوت</h3>
                 <p className="mt-1 text-[11px] leading-relaxed text-white/70">
-                  كاميرا مباشرة + ذكاء اصطناعي يترجم لحظيًا
+                  أشر بالحروف أمام الكاميرا ويتهجاها الذكاء الاصطناعي وينطقها لحظيًا
                 </p>
                 <Link to="/chat" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-primary shadow-soft">
                   جربه <ArrowLeft className="h-3 w-3" />
@@ -72,7 +72,7 @@ export function ModeScreen() {
               <div className="relative h-24 w-24 shrink-0">
                 <div className="absolute inset-0 rounded-3xl"
                   style={{ background: "linear-gradient(160deg, oklch(0.4 0.2 290), oklch(0.25 0.15 270))" }} />
-                <img src={avatarMale} alt="" loading="lazy" width={200} height={200} className="absolute inset-0 h-full w-full object-cover object-top rounded-3xl" />
+                <img src={avatarFemale} alt="" loading="lazy" width={200} height={200} className="absolute inset-0 h-full w-full object-cover object-top rounded-3xl" />
               </div>
             </div>
           </div>
