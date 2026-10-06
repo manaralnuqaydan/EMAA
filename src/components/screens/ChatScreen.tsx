@@ -24,6 +24,9 @@ import {
   PREDICT_INTERVAL_MS,
   SIGN_API_URL,
   STABLE_READS,
+  WORD_GAP_MS,
+  correctWord,
+  suggestWords,
 } from "@/lib/arasl";
 
 type Landmark = { x: number; y: number };
@@ -62,7 +65,6 @@ const proactiveKeywords = [
 
 export function ChatScreen() {
   const [signTranslation, setSignTranslation] = useState("");
-  const [currentLetter, setCurrentLetter] = useState<string | null>(null);
   const [replyText, setReplyText] = useState(DEFAULT_REPLY);
   const [inputText, setInputText] = useState("");
   const [isDetecting, setIsDetecting] = useState(false);
@@ -158,7 +160,6 @@ export function ChatScreen() {
         const hand = results.multiHandLandmarks?.[0];
         setHandVisible(!!hand);
         if (!hand) {
-          setCurrentLetter(null);
           return;
         }
         const now = Date.now();
@@ -209,7 +210,6 @@ export function ChatScreen() {
     isDetectingRef.current = false;
     setIsDetecting(false);
     setHandVisible(false);
-    setCurrentLetter(null);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
   }, []);
@@ -272,7 +272,6 @@ export function ChatScreen() {
 
   const handlePrediction = (letter: string, conf: number) => {
     setConfidence(conf);
-    setCurrentLetter(letter);
 
     // فلتر التردد: تكرار الثقة المنخفضة يفعّل الإرشاد الاستباقي
     if (conf < MIN_CONFIDENCE) {
@@ -300,21 +299,28 @@ export function ChatScreen() {
     answer(wordRef.current);
   };
 
-  // عند اختفاء اليد يمكن تكرار نفس الحرف (مثل: لل)
+  // عند اختفاء اليد يمكن تكرار نفس الحرف (مثل: لل)، وإذا طال اختفاؤها تنتهي الكلمة
   useEffect(() => {
-    if (!handVisible) {
-      committedLetterRef.current = "";
-      pendingCountRef.current = 0;
-    }
-  }, [handVisible]);
-
-  const addSpace = () => {
-    if (!wordRef.current || wordRef.current.endsWith(" ")) return;
-    const lastWord = wordRef.current.trim().split(" ").pop() ?? "";
-    setWord(wordRef.current + " ");
+    if (handVisible || !isDetecting) return;
     committedLetterRef.current = "";
-    if (autoSpeakRef.current) speak(lastWord);
+    pendingCountRef.current = 0;
+    const timer = setTimeout(finishWord, WORD_GAP_MS);
+    return () => clearTimeout(timer);
+  }, [handVisible, isDetecting]);
+
+  // ينهي الكلمة الحالية: يصححها لأقرب كلمة معروفة ثم ينطقها
+  const finishWord = (chosen?: string) => {
+    const text = wordRef.current;
+    if (!text || text.endsWith(" ")) return;
+    const start = text.lastIndexOf(" ") + 1;
+    const word = chosen ?? correctWord(text.slice(start));
+    setWord(text.slice(0, start) + word + " ");
+    committedLetterRef.current = "";
+    if (autoSpeakRef.current) speak(word);
+    answer(wordRef.current);
   };
+
+  const addSpace = () => finishWord();
 
   const deleteLetter = () => {
     const letters = Array.from(wordRef.current);
@@ -328,7 +334,6 @@ export function ChatScreen() {
     pendingLetterRef.current = "";
     committedLetterRef.current = "";
     setConfidence(null);
-    setCurrentLetter(null);
     setIsProactive(false);
     retryCountRef.current = 0;
   };
@@ -376,6 +381,11 @@ export function ChatScreen() {
     window.dispatchEvent(new CustomEvent("playAvatar"));
     if (autoSpeakRef.current) speak(userText);
   };
+
+  const partialWord = signTranslation.endsWith(" ")
+    ? ""
+    : (signTranslation.split(" ").pop() ?? "");
+  const suggestions = suggestWords(partialWord);
 
   const statusLabel = !isDetecting
     ? "اضغط للبدء"
@@ -515,9 +525,12 @@ export function ChatScreen() {
                 {confidence !== null ? `${Math.round(confidence)}%` : "-"}
               </div>
             </div>
-            {currentLetter && (
-              <div className="absolute left-3 top-3 grid h-16 w-16 place-items-center rounded-2xl grad-purple text-3xl font-black shadow-glow">
-                {currentLetter}
+            {isDetecting && partialWord && (
+              <div
+                dir="rtl"
+                className="absolute left-3 top-3 max-w-[70%] truncate rounded-2xl grad-purple px-4 py-2 text-2xl font-black shadow-glow"
+              >
+                {partialWord}
               </div>
             )}
             <button
@@ -536,19 +549,28 @@ export function ChatScreen() {
             </button>
           </div>
 
-          {/* الحروف المدعومة */}
+          {/* اقتراحات تكمل الكلمة اللي تتهجاها */}
           <div
-            className="relative mt-3 flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] md:flex-wrap md:justify-center md:overflow-visible"
+            className="relative mt-3 flex min-h-8 flex-wrap items-center justify-center gap-1.5"
             dir="rtl"
           >
-            {ARASL_LETTERS.map((letter) => (
-              <span
-                key={letter}
-                className={`grid h-7 min-w-7 shrink-0 place-items-center rounded-lg px-1 text-xs font-bold transition-all ${letter === currentLetter ? "grad-purple text-white shadow-soft scale-110" : "bg-white/[0.06] text-white/50"}`}
-              >
-                {letter}
+            {suggestions.length > 0 ? (
+              suggestions.map((word) => (
+                <button
+                  key={word}
+                  onClick={() => finishWord(word)}
+                  className="rounded-full bg-white/10 px-3 py-1 text-sm font-bold hover:bg-white/20"
+                >
+                  {word}
+                </button>
+              ))
+            ) : (
+              <span className="text-[11px] text-white/45">
+                {isDetecting
+                  ? "تهجّ الكلمة حرفًا حرفًا، ونزّل يدك ثانية لتنتهي الكلمة"
+                  : "يتعرف على الحروف ويجمعها في كلمات"}
               </span>
-            ))}
+            )}
           </div>
 
           <div className="relative mt-3 rounded-2xl bg-white/[0.07] p-3 backdrop-blur sm:p-4">
@@ -590,7 +612,7 @@ export function ChatScreen() {
                 onClick={addSpace}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/10 py-2 text-[11px] font-semibold hover:bg-white/20"
               >
-                <Space className="h-3.5 w-3.5" /> مسافة
+                <Space className="h-3.5 w-3.5" /> إنهاء الكلمة
               </button>
               <button
                 onClick={deleteLetter}

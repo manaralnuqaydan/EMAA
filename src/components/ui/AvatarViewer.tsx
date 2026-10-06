@@ -23,15 +23,19 @@ function isLegTrack(trackName: string) {
 
 // وضعية وقوف طبيعية (الذراعان للأسفل) بدل وضعية T
 function applyRestPose(avatar: THREE.Object3D) {
-  const pose: [string, number][] = [
-    ["LeftArm", 1.4],
-    ["RightArm", 1.4],
-    ["LeftForeArm", -0.45],
-    ["RightForeArm", -0.45],
+  const pose: [string, number, number, number][] = [
+    ["LeftArm", 1.45, 0, 0.15],
+    ["RightArm", 1.45, 0, -0.15],
+    ["LeftForeArm", 0.25, 0, 0],
+    ["RightForeArm", 0.25, 0, 0],
   ];
-  pose.forEach(([name, x]) => {
+  pose.forEach(([name, x, y, z]) => {
     const bone = avatar.getObjectByName(name);
-    if (bone) bone.rotation.x += x;
+    if (bone) {
+      bone.rotation.x += x;
+      bone.rotation.y += y;
+      bone.rotation.z += z;
+    }
   });
 }
 
@@ -107,8 +111,10 @@ function AvatarModel({ action: currentAction }: { action?: string }) {
       play();
   }, [currentAction]);
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
     if (mixer.current) mixer.current.update(delta);
+    // حركة تنفّس خفيفة وهو واقف عشان ما يبان جامد
+    avatar.rotation.y = Math.sin(clock.elapsedTime * 0.6) * 0.05;
   });
 
   return <primitive object={avatar} scale={0.017} position={[0, -2.0, 0]} />;
