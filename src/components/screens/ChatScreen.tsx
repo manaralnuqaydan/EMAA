@@ -387,7 +387,7 @@ export function ChatScreen() {
 
   return (
     <div
-      className="flex min-h-dvh w-full flex-col text-white md:h-dvh md:overflow-hidden"
+      className="flex min-h-dvh w-full flex-col text-white"
       style={{ background: "#1a1230" }}
     >
       {/* header */}
@@ -481,7 +481,7 @@ export function ChatScreen() {
             <div className="text-[10px] text-white/60">المستخدم · نور</div>
           </div>
 
-          <div className="relative mt-3 aspect-[4/3] w-full overflow-hidden rounded-2xl border border-white/15 bg-black/20 md:aspect-auto md:min-h-0 md:flex-1">
+          <div className="relative mt-3 aspect-[4/3] w-full shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/20 md:aspect-auto md:min-h-[260px] md:flex-1">
             <video
               ref={videoRef}
               autoPlay
@@ -626,7 +626,7 @@ export function ChatScreen() {
             </div>
 
             <div
-              className={`relative mt-3 h-64 overflow-hidden rounded-2xl border-2 transition-all sm:h-72 md:h-auto md:min-h-0 md:flex-1 ${isProactive ? "border-amber-400 shadow-lg" : "border-transparent"}`}
+              className={`relative mt-3 h-64 overflow-hidden rounded-2xl border-2 transition-all sm:h-72 md:h-auto md:min-h-[260px] md:flex-1 ${isProactive ? "border-amber-400 shadow-lg" : "border-transparent"}`}
               style={{
                 background:
                   "radial-gradient(ellipse at center top, oklch(0.9 0.06 295), oklch(0.95 0.02 295) 70%)",
