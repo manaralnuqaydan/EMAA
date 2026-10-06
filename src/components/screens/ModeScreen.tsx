@@ -1,6 +1,5 @@
-import { ChevronRight, Type, Video, ArrowLeft } from "lucide-react";
+import { ChevronRight, Type, Video, ArrowLeft, Camera } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import avatarFemale from "@/assets/avatar-female.png";
 import avatarSaudi from "@/assets/avatar-saudi.png";
 
 export function ModeScreen() {
@@ -72,7 +71,17 @@ export function ModeScreen() {
               <div className="relative h-24 w-24 shrink-0">
                 <div className="absolute inset-0 rounded-3xl"
                   style={{ background: "linear-gradient(160deg, oklch(0.4 0.2 290), oklch(0.25 0.15 270))" }} />
-                <img src={avatarFemale} alt="" loading="lazy" width={200} height={200} className="absolute inset-0 h-full w-full object-cover object-top rounded-3xl" />
+                <div className="absolute inset-2 rounded-2xl border border-white/20" />
+                <span className="absolute left-3 top-3 h-3 w-3 rounded-tl-md border-l-2 border-t-2 border-white/80" />
+                <span className="absolute right-3 top-3 h-3 w-3 rounded-tr-md border-r-2 border-t-2 border-white/80" />
+                <span className="absolute bottom-3 left-3 h-3 w-3 rounded-bl-md border-b-2 border-l-2 border-white/80" />
+                <span className="absolute bottom-3 right-3 h-3 w-3 rounded-br-md border-b-2 border-r-2 border-white/80" />
+                <div className="absolute inset-0 grid place-items-center">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 backdrop-blur">
+                    <Camera className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <span className="absolute bottom-4 left-1/2 h-1.5 w-1.5 -translate-x-1/2 animate-pulse rounded-full bg-red-400" />
               </div>
             </div>
           </div>
