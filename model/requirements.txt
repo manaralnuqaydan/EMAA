@@ -1,5 +1,4 @@
 # للتشغيل فقط (api.py)
-onnxruntime
 fastapi
 uvicorn
 opencv-python-headless

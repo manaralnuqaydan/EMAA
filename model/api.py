@@ -3,7 +3,6 @@ import json
 
 import cv2
 import numpy as np
-import onnxruntime as ort
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,8 +18,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# نسخة ONNX من model.keras: خفيفة ولا تحتاج tensorflow للتشغيل
-session = ort.InferenceSession('model.onnx', providers=['CPUExecutionProvider'])
+# نسخة ONNX من model.keras تشتغل عن طريق OpenCV نفسه، بدون tensorflow ولا onnxruntime
+net = cv2.dnn.readNetFromONNX('model.onnx')
 with open('classes.json', encoding='utf-8') as f:
     classes = json.load(f)
 
@@ -39,7 +38,8 @@ async def predict_image(data: ImageInput):
         if img is None:
             return NO_SIGN
         img = cv2.resize(img, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_AREA)
-        probabilities = session.run(None, {'image': img[None, ..., None].astype(np.float32)})[0][0]
+        net.setInput(img[None, ..., None].astype(np.float32))
+        probabilities = net.forward()[0]
         best = int(np.argmax(probabilities))
         return {"prediction": classes[best], "confidence": float(probabilities[best]) * 100}
     except Exception:

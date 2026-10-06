@@ -14,7 +14,7 @@ python train.py     # يدرّب ويحفظ model.keras و model.onnx و classes
 
 ## التشغيل
 
-التشغيل يحتاج onnxruntime فقط (بدون tensorflow):
+التشغيل يحتاج OpenCV فقط (بدون tensorflow ولا onnxruntime):
 
 ```bash
 pip install -r requirements.txt
