@@ -71,7 +71,23 @@ y_pred = model.predict(x_test, verbose=0).argmax(axis=1)
 print(classification_report(y_test, y_pred, target_names=[ARASL_LABELS[c] for c in classes]))
 
 model.save('model.keras')
+
+# نسخة ONNX للتشغيل في api.py بدون tensorflow (بدون طبقات التضخيم)
+import tf2onnx  # noqa: E402
+
+inference = tf.keras.Sequential(
+    [tf.keras.Input((IMG_SIZE, IMG_SIZE, 1))] + [l for l in model.layers if l is not augment]
+)
+spec = (tf.TensorSpec((None, IMG_SIZE, IMG_SIZE, 1), tf.float32, name='image'),)
+
+
+@tf.function(input_signature=spec)
+def serve(image):
+    return inference(image, training=False)
+
+
+tf2onnx.convert.from_function(serve, input_signature=spec, opset=13, output_path='model.onnx')
 with open('classes.json', 'w', encoding='utf-8') as f:
     json.dump([ARASL_LABELS[c] for c in classes], f, ensure_ascii=False)
 
-print("✅ تم حفظ الموديل في model.keras والحروف في classes.json")
+print("✅ تم حفظ الموديل في model.keras و model.onnx والحروف في classes.json")

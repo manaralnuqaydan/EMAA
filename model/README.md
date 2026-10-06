@@ -6,15 +6,18 @@
 ## التدريب
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-train.txt
 # فك ضغط الداتا داخل مجلد model بحيث يكون فيه ArASL_Database_54K_Final/
 python extract.py   # يحوّل الصور إلى data.npz
-python train.py     # يدرّب ويحفظ model.keras و classes.json
+python train.py     # يدرّب ويحفظ model.keras و model.onnx و classes.json
 ```
 
 ## التشغيل
 
+التشغيل يحتاج onnxruntime فقط (بدون tensorflow):
+
 ```bash
+pip install -r requirements.txt
 uvicorn api:app --port 8000
 ```
 

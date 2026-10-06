@@ -1,6 +1,6 @@
-tensorflow>=2.16
+# للتشغيل فقط (api.py)
+onnxruntime
 fastapi
 uvicorn
-opencv-python
+opencv-python-headless
 numpy
-scikit-learn
