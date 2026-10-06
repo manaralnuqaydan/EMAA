@@ -36,3 +36,5 @@ __pycache__/
 *.pyc
 model/data.npz
 model/ArASL_Database_54K_Final/
+.venv/
+venv/
