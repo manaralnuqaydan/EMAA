@@ -1,0 +1,6 @@
+# للتشغيل فقط (api.py)
+fastapi
+uvicorn
+opencv-python-headless
+numpy
+anthropic

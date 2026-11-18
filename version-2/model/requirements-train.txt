@@ -1,0 +1,5 @@
+# لإعادة التدريب (extract.py و train.py)
+-r requirements.txt
+tensorflow>=2.16
+tf2onnx
+scikit-learn
