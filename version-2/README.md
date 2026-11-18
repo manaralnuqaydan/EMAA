@@ -1,35 +1,46 @@
-# EMAA · Version 2
+# إيماء · EMAA
 
-نسخة إيماء الثانية. النسخة الأصلية باقية كما هي في جذر الريبو، وهذا المجلد مستقل عنها.
+تطبيق ترجمة لغة الإشارة (العربية ArSL والأمريكية ASL) مع أفاتار سعودي ثلاثي الأبعاد ومساعد ذكي.
 
-## الجديد في هذه النسخة
-- **من الإشارة إلى نص:** موديل CNN على داتا سيت ArASL (32 حرف عربي)، والكاميرا تجمع الحروف في كلمات مع اقتراحات وتصحيح.
-- **لغة الإشارة الأمريكية (ASL):** زر ع / ASL في شاشة الكاميرا، والموديل يقرأ نقاط اليد (`model/asl_landmarks.py`).
-- **الأفاتار:** يتهجى النص بأصابعه بأشكال يد مأخوذة من صور حقيقية، ويرمش ويحرك فمه مع الصوت.
-- **شات بوت:** يساعد الصم والبكم ويرد بالعربي والإنجليزي (`model/chatbot.py`).
-- **مقارنة الموديلات:** `model/benchmark.py` و `model/plot_results.py` بأرقام حقيقية على نفس صور الاختبار.
+## التشغيل (أمر واحد)
 
-## التشغيل
-ترمنال للموديل:
+يحتاج Node 20 أو أحدث و Python 3.10 أو أحدث.
+
 ```
-cd version-2/model
-python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m uvicorn api:app --port 8000
-```
-ترمنال للواجهة:
-```
-cd version-2
+git clone https://github.com/manaralnuqaydan/version-2-emaa.git
+cd version-2-emaa
 npm install
 npm run dev
 ```
-ثم افتح `http://localhost:8080`. تفاصيل الموديلات والشات بوت في `model/README.md`.
+
+ثم افتح `http://localhost:8080`.
+
+- `npm run dev` يشغّل الواجهة وخادم البايثون مع بعض. أول مرة يسوي بيئة بايثون في `model/.venv` ويثبت المكتبات لحاله (يأخذ دقائق مرة وحدة بس).
+- **مفتاح Claude للمساعد:** انسخ `model/.env.example` إلى `model/.env` واكتب المفتاح فيه. الملف ما ينرفع على GitHub. بدون المفتاح المساعد يرد بردود جاهزة بس.
+- `npm run dev:web` يشغّل الواجهة لحالها لو تبي.
+
+## ترتيب الملفات
+
+```
+src/                 الواجهة (React + TanStack + Vite)
+  routes/            الصفحات: /home  /modes  /chat (المساعد)  /camera (الكاميرا والأفاتار)
+  components/screens/  الشاشات (ChatScreen = المساعد، CameraScreen = الكاميرا)
+  i18n/              نصوص العربي والإنجليزي
+public/              الأفاتار avatar.fbx وأشكال اليد
+model/               خادم البايثون (FastAPI)
+  api.py chatbot.py  الخادم والمساعد
+  model.onnx classes.json phrases_model.pkl   الموديلات المدربة
+  tests/             اختبارات الخادم
+  training/          سكربتات التدريب وتجهيز الداتا (ما يحتاجها التشغيل)
+scripts/dev.mjs      تشغيل الواجهة والخادم بأمر واحد
+docs/                التوثيق، والملخص النهائي في docs/08-final-report.md
+tests/               اختبارات الواجهة
+```
 
 ## الاختبارات
-```
-cd version-2/model && python -m pytest tests    # يحتاج pytest و httpx
-cd version-2 && npm test
-```
 
-## التوثيق
-كل مراحل التطوير موثقة في `docs/`، والملخص النهائي (الحالة الصادقة لكل ميزة، الحدود، التشغيل والنشر) في `docs/08-final-report.md`.
+```
+npm test
+cd model && .venv/Scripts/python -m pip install pytest httpx && .venv/Scripts/python -m pytest tests
+```
+(على ماك ولينكس: `.venv/bin/python` بدل `.venv/Scripts/python`)

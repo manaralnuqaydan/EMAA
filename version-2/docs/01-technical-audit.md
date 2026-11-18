@@ -36,7 +36,7 @@ Routes: `/splash` → `/home` → `/modes` → `/chat` (assistant screen, `ChatS
 | Letters → words on camera, suggestions, auto-correct | Implemented but not fully tested | `src/lib/arasl.ts` (`WORD_GAP_MS`, `suggestWords`, `correctWord`) |
 | Original phrase recognition (السلام عليكم، كيف حالك) | **Removed in version 2** | Root project had `/predict-landmarks` + RandomForest trained on 35 videos (`model/videos`). Version 2 dropped it. Must be restored (rule 1: never delete Arabic functionality). |
 | Saudi Sign Language **vocabulary** (word/phrase signs) | Not implemented | ArASL is the Arabic **fingerspelling alphabet** (collected in Saudi Arabia), not Saudi Sign Language vocabulary. Claiming "Saudi Sign Language support" today would overstate it. |
-| ASL recognition | Partially implemented | UI toggle + `/predict-asl` + training script `model/asl_landmarks.py` exist; no dataset, no trained model. Script targets static ASL letters only. |
+| ASL recognition | Partially implemented | UI toggle + `/predict-asl` + training script `model/training/asl_landmarks.py` exist; no dataset, no trained model. Script targets static ASL letters only. |
 | Continuous sentence recognition (either language) | Not implemented | – |
 | Chatbot (contextual AI replies) | Implemented but not fully tested | Request shape verified against a mock server; never run against the real API (no key). Offline fallback answers from `public/data/dataset.json`. |
 | Text → avatar | Partially implemented | Avatar **fingerspells** Arabic letters procedurally (hand shapes extracted from ArASL photos with MediaPipe, solved onto the rig with IK). No word-level signs, right hand only, no ASL hand shapes yet (`handshapes_en.json` missing). |
@@ -45,7 +45,7 @@ Routes: `/splash` → `/home` → `/modes` → `/chat` (assistant screen, `ChatS
 | Text-to-speech | Implemented but not fully tested | Arabic only (`ar-SA`) |
 | Bilingual interface (AR/EN) | Not implemented | `<html lang="ar" dir="rtl">` hard-coded (`src/routes/__root.tsx:75`); ~150 hard-coded Arabic strings across screens; no i18n files |
 | Sign-language selector independent of UI language | Partially implemented | ع / ASL toggle exists on the camera screen only |
-| Model comparison for poster | Partially implemented | `model/benchmark.py`: HOG+SVM 92.8 %, HOG+RF 95.0 % done; CNN stopped at epoch 19/25; MLP, MobileNetV2, EfficientNetB0 not run |
+| Model comparison for poster | Partially implemented | `model/training/benchmark.py`: HOG+SVM 92.8 %, HOG+RF 95.0 % done; CNN stopped at epoch 19/25; MLP, MobileNetV2, EfficientNetB0 not run |
 | Privacy notice / consent | Not implemented | – |
 | Automated tests | Not implemented | No test files in the project |
 

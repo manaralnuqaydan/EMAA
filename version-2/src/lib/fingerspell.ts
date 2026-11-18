@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-// شكل اليد لكل حرف: 21 نقطة (MediaPipe world landmarks) من صور حقيقية، طالعة من model/handshapes.py
+// شكل اليد لكل حرف: 21 نقطة (MediaPipe world landmarks) من صور حقيقية، طالعة من model/training/handshapes.py
 export type Handshapes = Record<string, { landmarks: number[][] }>;
 
 const FINGERS: [string, number[]][] = [

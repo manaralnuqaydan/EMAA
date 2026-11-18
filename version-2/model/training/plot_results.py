@@ -64,6 +64,8 @@ fig.savefig(f'{OUT}/accuracy_vs_latency.png')
 best_key, best = max(summary.items(), key=lambda kv: kv[1]['accuracy'])
 cm = np.load(f'{OUT}/{best_key}_confusion.npy').astype(float)
 cm = cm / cm.sum(axis=1, keepdims=True) * 100
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # labels.py في مجلد model
 from labels import ARASL_LABELS  # noqa: E402
 latin = sorted(ARASL_LABELS)
 fig, ax = plt.subplots(figsize=(10, 9))

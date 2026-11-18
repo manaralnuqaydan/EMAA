@@ -6,17 +6,17 @@ Date: 2026-11-18. Dataset chosen by the team: **ASL Citizen** (see `02-dataset-r
 
 ```
 ASL_Citizen.zip (team computer, 42.8 GB, never uploaded)
-  └─ model/asl_citizen_extract.py   MediaPipe Holistic per frame → 9 upper-body points + 2 × 21 hand points (x, y, z)
+  └─ model/training/asl_citizen_extract.py   MediaPipe Holistic per frame → 9 upper-body points + 2 × 21 hand points (x, y, z)
                                     trimmed to the hand-visible part, resampled to 32 frames → (32, 153)
        └─ asl_citizen_landmarks.npz (small; derived data, not committed to Git)
-            └─ model/asl_words_train.py     normalise (shoulder centre / shoulder width), augment (scale, shift, mirror L↔R),
+            └─ model/training/asl_words_train.py     normalise (shoulder centre / shoulder width), augment (scale, shift, mirror L↔R),
                                             1D-CNN, official signer-independent splits, metrics → results/
                  └─ asl_words.onnx + asl_words_classes.json → api.py POST /predict-asl-word (OpenCV DNN)
 Browser: Live screen → ASL → "Words": MediaPipe Holistic in the browser collects frames while the hands are visible,
          sends the 32-frame sequence when the hands drop for 0.5 s; low-confidence results show the top-3 instead of guessing.
 ```
 
-The same normalisation code (`model/asl_words_features.py`) is used in training and in the API.
+The same normalisation code (`model/training/asl_words_features.py`) is used in training and in the API.
 
 ## Status
 

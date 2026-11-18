@@ -9,6 +9,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# الملفات تنقرأ بمسارات نسبية، فنشتغل دايمًا من مجلد model مهما كان مكان التشغيل
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 import chatbot
 from labels import IMG_SIZE
 

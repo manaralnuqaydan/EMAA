@@ -5,23 +5,27 @@
 
 ## التدريب
 
+سكربتات التدريب في `training/` وتنشغّل من مجلد `model`:
+
 ```bash
-pip install -r requirements-train.txt
+pip install -r training/requirements-train.txt
 # فك ضغط الداتا داخل مجلد model بحيث يكون فيه ArASL_Database_54K_Final/
-python extract.py   # يحوّل الصور إلى data.npz
-python train.py     # يدرّب ويحفظ model.keras و model.onnx و classes.json
+python training/extract.py   # يحوّل الصور إلى data.npz
+python training/train.py     # يدرّب ويحفظ model.keras و model.onnx و classes.json
 ```
 
 ## التشغيل
 
 التشغيل يحتاج OpenCV فقط (بدون tensorflow ولا onnxruntime):
 
+`npm run dev` في المجلد الرئيسي يشغّله لحاله. أو يدويًا:
+
 ```bash
 pip install -r requirements.txt
 uvicorn api:app --port 8000
 ```
 
-الواجهة (`ChatScreen.tsx`) تكتشف اليد بـ MediaPipe في المتصفح، تقص صورة اليد 64×64،
+الواجهة (`CameraScreen.tsx`) تكتشف اليد بـ MediaPipe في المتصفح، تقص صورة اليد 64×64،
 وترسلها إلى `POST /predict-image` بالشكل `{"image": "data:image/jpeg;base64,..."}`.
 الرد `{"prediction": "ب", "confidence": 97.3}`، والواجهة تجمع الحروف إلى كلمة.
 

@@ -5,6 +5,8 @@ import tensorflow as tf
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # labels.py في مجلد model
 from labels import ARASL_LABELS, IMG_SIZE
 
 dataset = np.load('data.npz')

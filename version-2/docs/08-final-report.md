@@ -1,6 +1,6 @@
 # EMAA – Phase 8: Final Documentation
 
-Date: 2026-11-18. Everything in this document refers to the `version-2/` folder. The original project in the repository root is untouched.
+Date: 2026-11-18. Paths are relative to the repository root (the standalone `version-2-emaa` repo).
 
 ## 1. Where each required document lives
 
@@ -60,7 +60,7 @@ Python API (model/api.py, FastAPI + OpenCV dnn, no TensorFlow at runtime)
 |---|---|
 | Docs | `docs/01` to `docs/08` |
 | API and models | `model/api.py`, `chatbot.py`, `requirements.txt`, `phrases_model.pkl` (copied from the original `model/model.pkl`) |
-| ASL pipeline | `model/asl_citizen_extract.py`, `asl_words_features.py`, `asl_words_train.py` |
+| ASL pipeline | `model/training/asl_citizen_extract.py`, `asl_words_features.py`, `asl_words_train.py` |
 | Tests and measurement | `model/tests/*`, `model/latency.py`, `model/results/latency.json`, `tests/fingerspell.test.ts`, `package.json` (`npm test`) |
 | i18n | `src/lib/i18n.tsx`, `src/i18n/ar.json`, `src/i18n/en.json`, `src/components/LanguageControls.tsx`, `src/routes/__root.tsx`, `src/routes/overview.tsx` |
 | Screens | `src/components/screens/{Splash,Home,Mode,Camera,Chat}Screen.tsx`, `ScreenStage.tsx`, `PhoneFrame.tsx` |
@@ -110,35 +110,36 @@ Commits on `main`: `a9561e06`, `2a04e249`, `4a93924e`, `fbd98003`, `53b89133`, `
 
 Requirements: Node 20 or newer, Python 3.10 or newer.
 
+Shortest path: `npm install` then `npm run dev` starts the interface and the API together (first run creates `model/.venv` and installs `requirements.txt`). The manual two-terminal steps below still work.
+
 ```bash
 # API (terminal 1)
-cd version-2/model
+cd model
 python -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt     # Windows: .venv\Scripts\python
 echo ANTHROPIC_API_KEY=your-key > .env                  # optional; never commit this file
 .venv/bin/python -m uvicorn api:app --port 8000
 
 # Interface (terminal 2)
-cd version-2
 npm install
-npm run dev            # http://localhost:8080
+npm run dev:web        # http://localhost:8080 (interface only)
 ```
 
 Run the tests:
 
 ```bash
-cd version-2/model && .venv/bin/python -m pip install pytest httpx && .venv/bin/python -m pytest tests
-cd version-2 && npm test
-cd version-2/model && .venv/bin/python latency.py      # writes results/latency.json
+cd model && .venv/bin/python -m pip install pytest httpx && .venv/bin/python -m pytest tests
+npm test
+cd model && .venv/bin/python latency.py      # writes results/latency.json
 ```
 
 Train ASL words (team computer, after downloading ASL Citizen):
 
 ```bash
-cd version-2/model
-python -m pip install -r requirements-train.txt
-python asl_citizen_extract.py --zip path/to/ASL_Citizen.zip   # → asl_citizen_landmarks.npz
-python asl_words_train.py --data asl_citizen_landmarks.npz    # → asl_words.onnx + results/asl_words_summary.json
+cd model
+python -m pip install -r training/requirements-train.txt
+python training/asl_citizen_extract.py --zip path/to/ASL_Citizen.zip   # → asl_citizen_landmarks.npz
+python training/asl_words_train.py --data asl_citizen_landmarks.npz    # → asl_words.onnx + results/asl_words_summary.json
 ```
 
 ## 7. Deployment

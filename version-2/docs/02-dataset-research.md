@@ -64,6 +64,6 @@ Date: 2026-11-18. Facts below come from the official pages/repositories listed f
 | Need | Dataset | Plan |
 |---|---|---|
 | ASL words | **ASL Citizen**, subset of ~100 everyday conversational signs | Download on a team computer (42.8 GB), extract MediaPipe landmarks there (only small landmark files leave that computer), train a landmark sequence model, report accuracy on the official signer-independent test split |
-| ASL letters | ASL Alphabet (Kaggle, already planned in `model/asl_landmarks.py`) | Licence must be checked on the Kaggle page before use |
+| ASL letters | ASL Alphabet (Kaggle, already planned in `model/training/asl_landmarks.py`) | Licence must be checked on the Kaggle page before use |
 | Arabic words | KArSL-100 or KArSL-190 | After the author confirms terms |
 | Continuous sentences | – | Out of scope for this exhibition; documented as "Not implemented" |

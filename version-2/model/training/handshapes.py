@@ -15,6 +15,8 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # labels.py في مجلد model
 from labels import ARASL_LABELS
 
 parser = argparse.ArgumentParser()

@@ -20,6 +20,8 @@ from sklearn.metrics import (accuracy_score, classification_report, confusion_ma
 from sklearn.model_selection import train_test_split
 from sklearn.svm import LinearSVC
 
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))  # labels.py في مجلد model
 from labels import ARASL_LABELS
 
 SEED = 42
