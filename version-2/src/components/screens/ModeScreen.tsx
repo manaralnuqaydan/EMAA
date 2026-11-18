@@ -75,7 +75,7 @@ export function ModeScreen() {
                   {t("modes.chatDesc")}
                 </p>
                 <Link
-                  to="/camera"
+                  to="/chat"
                   className="mt-3 inline-flex items-center gap-1.5 rounded-full grad-purple px-3.5 py-1.5 text-[11px] font-bold text-white shadow-soft"
                 >
                   {t("modes.start")}{" "}
@@ -132,7 +132,7 @@ export function ModeScreen() {
                   {t("modes.liveDesc")}
                 </p>
                 <Link
-                  to="/chat"
+                  to="/camera"
                   className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-primary shadow-soft"
                 >
                   {t("modes.try")}{" "}

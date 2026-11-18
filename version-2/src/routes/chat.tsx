@@ -4,7 +4,7 @@ import { ChatScreen } from "@/components/screens/ChatScreen";
 
 export const Route = createFileRoute("/chat")({
   component: () => (
-    <ScreenStage label="05 · AI Chat" caption="محادثة ذكية مع AI">
+    <ScreenStage label="04 · AI Chat" caption="محادثة ذكية مع AI">
       <ChatScreen />
     </ScreenStage>
   ),

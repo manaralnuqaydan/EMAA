@@ -14,7 +14,7 @@ Date: 2026-11-18
 | Step | Input | Component | Output | Error handling | Status |
 |---|---|---|---|---|---|
 | 1 | Sign language choice | `SignLanguagePicker` (Modes / Live) | `arsl` or `asl` | – | Implemented and tested |
-| 2 | Camera | `getUserMedia` in `ChatScreen.tsx` | video frames (stay in browser) | visible "allow camera" message | Implemented, not tested with a real camera here |
+| 2 | Camera | `getUserMedia` in `CameraScreen.tsx` | video frames (stay in browser) | visible "allow camera" message | Implemented, not tested with a real camera here |
 | 3 | Frames | MediaPipe Hands / Holistic (browser) | landmarks + 64×64 hand crop (Arabic letters) | "show your hand" status | Implemented, not tested with a real camera here |
 | 4 | Crop / landmarks / sequence | `/predict-image`, `/predict-phrase`, `/predict-asl`, `/predict-asl-word` | label + confidence | low confidence rejected; ASL shows "not trained" | Arabic letters: tested offline (96.8 %). ASL: model pending |
 | 5 | Letters | `arasl.ts` stable-read filter, word grouping, suggestions | recognised text (editable) | user can edit/delete | Implemented |
@@ -25,7 +25,7 @@ Date: 2026-11-18
 
 | Step | Input | Component | Output | Error handling | Status |
 |---|---|---|---|---|---|
-| 1 | Typed (or dictated) text | Assistant screen (`CameraScreen.tsx`) | message bubble | empty input blocked | Implemented and tested |
+| 1 | Typed (or dictated) text | Assistant screen (`ChatScreen.tsx`) | message bubble | empty input blocked | Implemented and tested |
 | 2 | Conversation history (last 20) | `/chat` | `{ar, en, sign, source}` | on failure the message returns to the input box | Tested with mock (≈1.4 s round trip through the browser with the mock; real latency **not measured**) |
 | 3 | Reply | chat bubble in UI language + other language below | text | – | Tested |
 | 4 | `sign` | `AvatarViewer` fingerspelling (hand shapes per sign language) | avatar letters + live caption | letters without a hand shape are skipped (fallback text stays) | Arabic: implemented; ASL: no hand shapes yet |

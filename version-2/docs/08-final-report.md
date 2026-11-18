@@ -32,13 +32,13 @@ Date: 2026-11-18. Everything in this document refers to the `version-2/` folder.
 Browser (React 19 + TanStack Start + Vite, Tailwind 4)
  ├─ i18n: src/lib/i18n.tsx + src/i18n/{ar,en}.json
  │    UI language (ar/en, RTL/LTR) and sign language (ArSL/ASL) are chosen separately
- ├─ Live screen (/chat): webcam → MediaPipe (runs in the browser)
+ ├─ Live screen (/camera): webcam → MediaPipe (runs in the browser)
  │    ArSL letters  : cropped 64×64 grey hand image → POST /predict-image
  │    ArSL phrases  : 21 hand points                → POST /predict-phrase
  │    ASL letters   : 21 hand world points          → POST /predict-asl       (model not trained)
  │    ASL words     : 32 frames × 153 Holistic values → POST /predict-asl-word (model not trained)
  │    recognised text → "Send to assistant" → POST /chat   (Workflow A)
- ├─ Assistant screen (/camera): text or voice → POST /chat → reply {ar, en, sign, source}
+ ├─ Assistant screen (/chat): text or voice → POST /chat → reply {ar, en, sign, source}
  │    reply is spoken (Web Speech) and `sign` is fingerspelled by the avatar   (Workflow B)
  └─ Avatar: three.js / react-three-fiber, avatar.fbx
       procedural fingerspelling from public/data/handshapes_ar.json (32 ArSL handshapes)

@@ -16,8 +16,8 @@ const screens = [
   { id: "splash", label: "01 · Splash", caption: "overview.splash", Component: SplashScreen },
   { id: "home", label: "02 · Home", caption: "overview.home", Component: HomeScreen },
   { id: "mode", label: "03 · Modes", caption: "overview.mode", Component: ModeScreen },
-  { id: "camera", label: "04 · AI Chat", caption: "overview.camera", Component: CameraScreen },
-  { id: "chat", label: "05 · Live Translate", caption: "overview.chat", Component: ChatScreen },
+  { id: "chat", label: "04 · AI Chat", caption: "overview.chat", Component: ChatScreen },
+  { id: "camera", label: "05 · Live Translate", caption: "overview.camera", Component: CameraScreen },
 ];
 
 function Overview() {

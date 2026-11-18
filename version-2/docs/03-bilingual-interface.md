@@ -11,11 +11,11 @@ Date: 2026-11-18
 | `<html lang dir>` and page title switch (ar/rtl ↔ en/ltr); stored choice applied before first paint | Implemented and tested (Playwright: all 4 screens, both languages, desktop 1280×800 and phone 390×844, no page errors) | `src/routes/__root.tsx` |
 | Visible language switcher (العربية / English) on Home, Modes, Assistant, Live and Overview | Implemented and tested | `src/components/LanguageControls.tsx` |
 | Sign-language selector (Arabic Sign Language / ASL), **independent** of the UI language, persisted (`emaa.signLang`), on the Modes screen and the Live screen header | Implemented and tested | `SignLanguagePicker` |
-| Active sign language shown on the camera panel and on the avatar | Implemented and tested | `ChatScreen.tsx` |
-| Honest ASL notice: the UI asks the API which models exist (`GET /` → `models`) and shows "ASL model not trained yet" instead of pretending | Implemented and tested | `model/api.py`, `ChatScreen.tsx` |
+| Active sign language shown on the camera panel and on the avatar | Implemented and tested | `CameraScreen.tsx` |
+| Honest ASL notice: the UI asks the API which models exist (`GET /` → `models`) and shows "ASL model not trained yet" instead of pretending | Implemented and tested | `model/api.py`, `CameraScreen.tsx` |
 | Avatar hand shapes kept per sign language (no merging of Arabic and ASL hand shapes) | Implemented, not yet tested with ASL shapes (none exist yet) | `AvatarViewer.tsx` |
 | Text-to-speech picks Arabic or English voice from the text itself; speech-to-text follows the UI language | Implemented but not fully tested (needs a real browser with voices) | `src/lib/speech.ts` |
-| Camera permission error shown to the user | Implemented but not tested with a real camera | `ChatScreen.tsx` |
+| Camera permission error shown to the user | Implemented but not tested with a real camera | `CameraScreen.tsx` |
 | Restored the original phrase recogniser (السلام عليكم، كيف حالك) as "Phrases" mode in Arabic | Implemented; API tested with samples from the original data | `model/api.py` `/predict-phrase`, `model/phrases_model.pkl` |
 
 ## Honesty fixes made while translating

@@ -4,8 +4,8 @@ import { LayoutGrid } from "lucide-react";
 const items = [
   { to: "/home", num: "02", label: "Home" },
   { to: "/modes", num: "03", label: "Modes" },
-  { to: "/camera", num: "04", label: "Live" },
-  { to: "/chat", num: "05", label: "AI Chat" },
+  { to: "/chat", num: "04", label: "AI Chat" },
+  { to: "/camera", num: "05", label: "Live" },
 ] as const;
 
 export function AppNav() {

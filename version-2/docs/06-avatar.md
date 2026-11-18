@@ -35,7 +35,7 @@
 - `src/components/ui/SpellCaption.tsx`: شريط الحروف + أدوات التشغيل + تنبيه الحروف غير المدعومة (مشترك بين شاشة المساعد وشاشة المحادثة الفورية).
 - `src/lib/fingerspell.ts`: `splitLetters` ترجع `{ch, ok}` بدل ما تحذف الحروف غير المدعومة، و`questionType` لنوع السؤال.
 - `src/i18n/ar.json` و`en.json`: قسم `avatar`.
-- `src/components/screens/CameraScreen.tsx`: إصلاح ارتفاع الأفاتار في الجوال (كان 150px بسبب `flex-1` بدون ارتفاع محدد).
+- `src/components/screens/ChatScreen.tsx`: إصلاح ارتفاع الأفاتار في الجوال (كان 150px بسبب `flex-1` بدون ارتفاع محدد).
 
 ## الأحداث (للمطورين)
 
