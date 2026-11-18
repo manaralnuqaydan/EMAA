@@ -71,7 +71,12 @@
     "playVoice": "Play voice",
     "serverDown": "The server is offline. Start api.py and try again.",
     "you": "You",
-    "bot": "Emaa"
+    "bot": "Emaa",
+    "sourceAi": "AI reply (Claude)",
+    "sourceDataset": "Offline canned reply",
+    "sourceOffline": "Assistant offline",
+    "avatarSpells": "Avatar fingerspells: {words}",
+    "replaySign": "Replay fingerspelling"
   },
   "live": {
     "title": "Live conversation translation",
@@ -113,7 +118,9 @@
     "words": "Words",
     "hintAslWords": "Sign a whole ASL word, then lower your hands; the model reads the movement",
     "wordUnsure": "The model is not sure. Closest: {words}",
-    "loadingHolistic": "Loading body and hand tracker..."
+    "loadingHolistic": "Loading body and hand tracker...",
+    "askAssistant": "Send to assistant",
+    "asking": "Assistant is replying..."
   },
   "overview": {
     "splash": "Emaa splash screen",

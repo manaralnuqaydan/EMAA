@@ -104,14 +104,16 @@ class ChatMessage(BaseModel):
 
 class ChatInput(BaseModel):
     messages: list[ChatMessage]
+    ui_lang: Literal["ar", "en"] = "ar"
+    sign_lang: Literal["arsl", "asl"] = "arsl"
 
 
 @app.post("/chat")
 def chat(data: ChatInput):
-    # يرجع الرد بالعربي والإنجليزي: {"ar": ..., "en": ..., "source": ...}
+    # يرجع: {"ar": ..., "en": ..., "sign": كلمات يتهجاها الأفاتار, "source": claude|dataset|offline}
     if not data.messages or data.messages[-1].role != "user":
-        return {"ar": "", "en": "", "source": "empty"}
-    return chatbot.reply([m.model_dump() for m in data.messages])
+        return {"ar": "", "en": "", "sign": "", "source": "empty"}
+    return chatbot.reply([m.model_dump() for m in data.messages], data.ui_lang, data.sign_lang)
 
 
 class PhraseInput(BaseModel):

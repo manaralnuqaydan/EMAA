@@ -24,6 +24,7 @@ import {
   SignLanguagePicker,
 } from "@/components/LanguageControls";
 import type { SpellRequest } from "@/components/ui/AvatarViewer";
+import { askAssistant, spellOnAvatar, type ChatTurn } from "@/lib/assistant";
 import {
   ARASL_LETTERS,
   MIN_CONFIDENCE,
@@ -112,6 +113,11 @@ export function ChatScreen() {
   const tRef = useRef(t);
   tRef.current = t;
   const [apiStatus, setApiStatus] = useState<ApiStatus>(null);
+  const [chatbotOnline, setChatbotOnline] = useState(false);
+  const chatbotOnlineRef = useRef(chatbotOnline);
+  chatbotOnlineRef.current = chatbotOnline;
+  const chatHistoryRef = useRef<ChatTurn[]>([]);
+  const [asking, setAsking] = useState(false);
   // في العربي: حروف (موديل ArASL) أو عبارات (موديل النسخة الأصلية)
   const [arslMode, setArslMode] = useState<"letters" | "phrases">("letters");
   const arslModeRef = useRef(arslMode);
@@ -159,7 +165,10 @@ export function ChatScreen() {
   useEffect(() => {
     fetch(`${SIGN_API_URL}/`)
       .then((res) => res.json())
-      .then((data) => setApiStatus(data.models ?? null))
+      .then((data) => {
+        setApiStatus(data.models ?? null);
+        setChatbotOnline(!!data.chatbot);
+      })
       .catch(() => setApiStatus(null));
   }, []);
   const usingAslWords = signLang === "asl" && aslMode === "words";
@@ -272,8 +281,10 @@ export function ChatScreen() {
     if (autoSpeakRef.current) speak(text);
   };
 
-  // يبحث عن رد مناسب للجملة في dataset.json ويشغّل الأفاتار
+  // بدون اتصال بالشات بوت: رد جاهز من dataset.json (ميزة النسخة الأصلية)
+  // ومع الشات بوت: المستخدم يضغط "أرسل للمساعد" ويجيه رد حقيقي بدل الردود الجاهزة
   const answer = (text: string) => {
+    if (chatbotOnlineRef.current) return false;
     const replies = repliesRef.current;
     const key = Object.keys(replies)
       .sort((a, b) => b.length - a.length)
@@ -282,6 +293,34 @@ export function ChatScreen() {
     respond(replies[key].response);
     window.dispatchEvent(new CustomEvent("playAvatar"));
     return true;
+  };
+
+  // المسار A: الإشارة → نص → الشات بوت → رد بالنص والصوت والأفاتار
+  const askFromSigns = async () => {
+    const message = wordRef.current.trim();
+    if (!message || asking) return;
+    const history = [
+      ...chatHistoryRef.current,
+      { role: "user" as const, content: message },
+    ];
+    setAsking(true);
+    try {
+      const reply = await askAssistant(history, uiLang, signLang);
+      chatHistoryRef.current = [
+        ...history,
+        { role: "assistant", content: reply.ar || reply.en },
+      ];
+      const text =
+        (uiLang === "ar" ? reply.ar : reply.en) || reply.ar || reply.en;
+      respond(text);
+      spellOnAvatar(reply.sign, signLang);
+      setWord("");
+      setApiError(false);
+    } catch {
+      setApiError(true);
+    } finally {
+      setAsking(false);
+    }
   };
 
   useEffect(() => {
@@ -941,6 +980,7 @@ export function ChatScreen() {
             <div className="relative mt-2">
               <textarea
                 dir="auto"
+                aria-label={t("live.signText")}
                 value={signTranslation}
                 placeholder={t("live.waiting")}
                 onChange={(e) => {
@@ -948,7 +988,7 @@ export function ChatScreen() {
                   checkProactiveContext(e.target.value);
                 }}
                 rows={2}
-                className="w-full resize-none rounded-xl bg-white/[0.04] px-8 py-2 text-start text-lg font-semibold leading-snug text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-primary/50 md:text-xl"
+                className="w-full resize-none rounded-xl bg-white/[0.04] px-10 py-2 text-start text-lg font-semibold leading-snug text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-primary/50 md:text-xl"
               />
               <button
                 onClick={clearTranslation}
@@ -973,6 +1013,14 @@ export function ChatScreen() {
                 {t("live.deleteLetter")}
               </button>
             </div>
+            <button
+              onClick={askFromSigns}
+              disabled={!signTranslation.trim() || asking}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl grad-purple py-2 text-[12px] font-bold shadow-soft disabled:opacity-40"
+            >
+              <Send className="h-3.5 w-3.5 rtl:-scale-x-100" />
+              {asking ? t("live.asking") : t("live.askAssistant")}
+            </button>
           </div>
         </div>
 

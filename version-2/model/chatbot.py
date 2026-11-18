@@ -14,7 +14,7 @@ HERE = Path(__file__).parent
 MODEL = os.environ.get('EMAA_CHAT_MODEL', 'claude-opus-5-5')
 
 SYSTEM = """You are EMAA (إيماء), a friendly assistant inside an app for Deaf and mute people in Saudi Arabia.
-Your replies are shown as text and signed by a 3D avatar, so:
+Your replies are shown as text, read aloud, and a 3D avatar fingerspells a few key words, so:
 - Use short, simple, clear sentences: at most 3 sentences and about 40 words.
 - Use common everyday words. No emojis, no markdown, no lists, no links.
 - Write `ar` in clear Modern Standard Arabic (Saudi-friendly wording), and `en` as the same meaning in English.
@@ -34,8 +34,12 @@ their hands, so guess the intended meaning and confirm briefly."""
 
 REPLY_SCHEMA = {
     'type': 'object',
-    'properties': {'ar': {'type': 'string'}, 'en': {'type': 'string'}},
-    'required': ['ar', 'en'],
+    'properties': {
+        'ar': {'type': 'string'},
+        'en': {'type': 'string'},
+        'sign': {'type': 'string', 'description': '1-4 key words for the avatar to fingerspell'},
+    },
+    'required': ['ar', 'en', 'sign'],
     'additionalProperties': False,
 }
 
@@ -61,17 +65,28 @@ FALLBACK = {
 }
 
 
-def _offline_reply(text):
+def _context(ui_lang, sign_lang):
+    sign_name = 'Arabic Sign Language' if sign_lang == 'arsl' else 'American Sign Language (ASL)'
+    sign_words = ('Arabic words (Arabic letters only)' if sign_lang == 'arsl'
+                  else 'English words (Latin letters only)')
+    return (f"\n\nThe app interface is in {'Arabic' if ui_lang == 'ar' else 'English'} and the selected sign "
+            f"language is {sign_name}. Always fill both `ar` and `en`. Put in `sign` the 1-4 most important "
+            f"{sign_words} of your reply, for the avatar to fingerspell. Never mix Arabic and ASL in `sign`.")
+
+
+def _offline_reply(text, sign_lang='arsl'):
+    # بدون اتصال: ردود جاهزة من dataset.json (مو ذكاء اصطناعي)
     key = next((k for k in sorted(_replies, key=len, reverse=True) if k in text), None)
     if key:
-        return {'ar': _replies[key]['response'], 'en': '', 'source': 'dataset'}
-    return {**FALLBACK, 'source': 'offline'}
+        answer = _replies[key]['response']
+        return {'ar': answer, 'en': '', 'sign': answer if sign_lang == 'arsl' else '', 'source': 'dataset'}
+    return {**FALLBACK, 'sign': '', 'source': 'offline'}
 
 
-def reply(messages):
+def reply(messages, ui_lang='ar', sign_lang='arsl'):
     """messages: [{"role": "user"|"assistant", "content": str}, ...] ينتهي برسالة المستخدم."""
     if _client is None:
-        return _offline_reply(messages[-1]['content'])
+        return _offline_reply(messages[-1]['content'], sign_lang)
     history = messages[-20:]
     while history and history[0]['role'] != 'user':
         history = history[1:]
@@ -79,19 +94,20 @@ def reply(messages):
         response = _client.beta.messages.create(
             model=MODEL,
             max_tokens=1024,  # الردود قصيرة عمدًا
-            system=SYSTEM,
+            system=SYSTEM + _context(ui_lang, sign_lang),
             messages=history,
             output_config={'effort': 'low', 'format': {'type': 'json_schema', 'schema': REPLY_SCHEMA}},
             betas=['server-side-fallback-2026-07-01'],
             fallbacks='default',
         )
     except (anthropic.APIStatusError, anthropic.APIConnectionError) as e:
-        print('chatbot error:', e)
-        return _offline_reply(messages[-1]['content'])
+        print('chatbot error:', type(e).__name__)  # بدون نص المحادثة في السجل
+        return _offline_reply(messages[-1]['content'], sign_lang)
     if response.stop_reason == 'refusal':
-        return {'ar': 'لا أستطيع المساعدة في هذا الطلب.', 'en': "I can't help with that request.", 'source': 'claude'}
+        return {'ar': 'لا أستطيع المساعدة في هذا الطلب.', 'en': "I can't help with that request.",
+                'sign': '', 'source': 'claude'}
     text = next((b.text for b in response.content if b.type == 'text'), '')
     try:
         return {**json.loads(text), 'source': 'claude'}
     except json.JSONDecodeError:
-        return _offline_reply(messages[-1]['content'])
+        return _offline_reply(messages[-1]['content'], sign_lang)
