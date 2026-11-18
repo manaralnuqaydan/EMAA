@@ -144,18 +144,86 @@ const editDistance = (a: string[], b: string[]) => {
   return d[a.length][b.length];
 };
 
+// كلمات إنجليزية شائعة لوضع ASL
+export const EN_WORDS = [
+  "hello",
+  "hi",
+  "thanks",
+  "thank",
+  "you",
+  "please",
+  "sorry",
+  "yes",
+  "no",
+  "help",
+  "me",
+  "my",
+  "name",
+  "what",
+  "where",
+  "when",
+  "how",
+  "who",
+  "why",
+  "need",
+  "want",
+  "water",
+  "food",
+  "eat",
+  "drink",
+  "doctor",
+  "hospital",
+  "pharmacy",
+  "medicine",
+  "pain",
+  "sick",
+  "home",
+  "school",
+  "work",
+  "friend",
+  "family",
+  "mother",
+  "father",
+  "good",
+  "bad",
+  "love",
+  "happy",
+  "sad",
+  "today",
+  "tomorrow",
+  "now",
+  "time",
+  "phone",
+  "call",
+  "emergency",
+  "bathroom",
+  "money",
+  "car",
+  "go",
+  "come",
+  "stop",
+  "wait",
+  "again",
+  "understand",
+  "deaf",
+];
+
+// إذا الكلمة حروفها لاتينية نستخدم القائمة الإنجليزية
+const wordsFor = (word: string) =>
+  /^[a-z]/i.test(word) ? EN_WORDS : COMMON_WORDS;
+
 export const suggestWords = (prefix: string, limit = 4) =>
   prefix
-    ? COMMON_WORDS.filter((w) => w.startsWith(prefix) && w !== prefix).slice(
-        0,
-        limit,
-      )
+    ? wordsFor(prefix)
+        .filter((w) => w.startsWith(prefix) && w !== prefix)
+        .slice(0, limit)
     : [];
 
 // يصحح الكلمة لأقرب كلمة معروفة إذا كان الفرق حرفًا واحدًا فقط
 export const correctWord = (word: string) => {
-  if (COMMON_WORDS.includes(word) || Array.from(word).length < 3) return word;
-  const match = COMMON_WORDS.find(
+  const words = wordsFor(word);
+  if (words.includes(word) || Array.from(word).length < 3) return word;
+  const match = words.find(
     (w) => editDistance(Array.from(w), Array.from(word)) === 1,
   );
   return match ?? word;

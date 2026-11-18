@@ -42,3 +42,6 @@ venv/
 # أسرار محلية (مفتاح Claude API)
 .env
 model/.env
+model/results/*.keras
+model/asl_landmarks.npz
+model/asl_alphabet_train/

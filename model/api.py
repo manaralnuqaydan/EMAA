@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 from typing import Literal
 
 import cv2
@@ -27,6 +28,13 @@ with open('classes.json', encoding='utf-8') as f:
 
 NO_SIGN = {"prediction": "لم يتم التعرف على إشارة", "confidence": 0}
 
+# موديل ASL الإنجليزي (على نقاط اليد) من asl_landmarks.py، إذا كان موجود
+asl_net, asl_classes = None, []
+if os.path.exists('asl_model.onnx'):
+    asl_net = cv2.dnn.readNetFromONNX('asl_model.onnx')
+    with open('asl_classes.json', encoding='utf-8') as f:
+        asl_classes = json.load(f)
+
 
 class ImageInput(BaseModel):
     image: str  # صورة اليد المقصوصة كـ data URL أو base64
@@ -46,6 +54,26 @@ async def predict_image(data: ImageInput):
         return {"prediction": classes[best], "confidence": float(probabilities[best]) * 100}
     except Exception:
         return {"prediction": "خطأ في المعالجة", "confidence": 0}
+
+
+class LandmarksInput(BaseModel):
+    landmarks: list[list[float]]  # 21 نقطة (x, y, z) من multiHandWorldLandmarks
+    handedness: str = "Right"
+
+
+@app.post("/predict-asl")
+def predict_asl(data: LandmarksInput):
+    if asl_net is None or len(data.landmarks) != 21:
+        return {"prediction": "", "confidence": 0}
+    pts = np.array(data.landmarks, dtype=np.float32)
+    if data.handedness == "Left":
+        pts[:, 0] *= -1
+    pts = pts - pts[0]
+    pts = pts / (np.linalg.norm(pts[9]) + 1e-9)
+    asl_net.setInput(pts.reshape(1, 63))
+    probabilities = asl_net.forward()[0]
+    best = int(np.argmax(probabilities))
+    return {"prediction": asl_classes[best], "confidence": float(probabilities[best]) * 100}
 
 
 class ChatMessage(BaseModel):

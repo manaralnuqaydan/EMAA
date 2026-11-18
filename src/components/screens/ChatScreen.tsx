@@ -74,6 +74,10 @@ export function ChatScreen() {
   const [isProactive, setIsProactive] = useState<boolean>(false);
   const [proactiveReason, setProactiveReason] = useState<string>("");
   const [autoSpeak, setAutoSpeak] = useState(true);
+  // لغة الإشارة اللي يقرأها من الكاميرا: العربية (ArASL) أو الأمريكية (ASL)
+  const [lang, setLang] = useState<"ar" | "en">("ar");
+  const langRef = useRef(lang);
+  langRef.current = lang;
   const [spellCaption, setSpellCaption] = useState<{
     letters: string[];
     index: number;
@@ -185,6 +189,12 @@ export function ChatScreen() {
         )
           return;
         lastPredictTime.current = now;
+        if (langRef.current === "en") {
+          const world = results.multiHandWorldLandmarks?.[0];
+          const side = results.multiHandedness?.[0]?.label ?? "Right";
+          if (world) sendLandmarksToAPI(world, side);
+          return;
+        }
         const image = cropHand(hand);
         if (image) sendImageToAPI(image);
       });
@@ -286,6 +296,38 @@ export function ChatScreen() {
     }
   };
 
+  // ASL: نرسل نقاط اليد الـ21 بدل الصورة
+  const sendLandmarksToAPI = async (
+    world: { x: number; y: number; z: number }[],
+    handedness: string,
+  ) => {
+    requestInFlight.current = true;
+    try {
+      const res = await fetch(`${SIGN_API_URL}/predict-asl`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          landmarks: world.map((p) => [p.x, p.y, p.z]),
+          handedness,
+        }),
+      });
+      const data = await res.json();
+      setApiError(false);
+      if (!data.prediction || data.prediction === "nothing") return;
+      // "space" و "del" إشارات في ASL Alphabet: تنهي الكلمة أو تحذف حرف
+      const token =
+        data.prediction.length === 1
+          ? data.prediction.toLowerCase()
+          : data.prediction;
+      handlePrediction(token, data.confidence ?? 0);
+    } catch (err) {
+      setApiError(true);
+      console.error("خطأ في الاتصال بالـ API:", err);
+    } finally {
+      requestInFlight.current = false;
+    }
+  };
+
   const handlePrediction = (letter: string, conf: number) => {
     setConfidence(conf);
 
@@ -310,6 +352,8 @@ export function ChatScreen() {
 
     committedLetterRef.current = letter;
     retryCountRef.current = 0;
+    if (letter === "space") return finishWord();
+    if (letter === "del") return deleteLetter();
     setWord(wordRef.current + letter);
     checkProactiveContext(wordRef.current);
     answer(wordRef.current);
@@ -435,6 +479,28 @@ export function ChatScreen() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div
+            dir="ltr"
+            className="flex h-10 items-center rounded-full glass-dark p-1 text-[11px] font-bold"
+            role="group"
+            aria-label="لغة الإشارة"
+          >
+            {(["ar", "en"] as const).map((l) => (
+              <button
+                key={l}
+                onClick={() => {
+                  setLang(l);
+                  clearTranslation();
+                }}
+                title={
+                  l === "ar" ? "لغة الإشارة العربية" : "American Sign Language"
+                }
+                className={`h-8 rounded-full px-3 transition-all ${lang === l ? "grad-purple text-white shadow-soft" : "text-white/60"}`}
+              >
+                {l === "ar" ? "ع" : "ASL"}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => {
               if (autoSpeak) stopSpeaking();
@@ -532,7 +598,9 @@ export function ChatScreen() {
                     className="mx-auto mb-2 h-8 w-8 text-white/30"
                     strokeWidth={1.4}
                   />
-                  أشر بحروف لغة الإشارة العربية وسيتم تهجئتها
+                  {lang === "ar"
+                    ? "أشر بحروف لغة الإشارة العربية وسيتم تهجئتها"
+                    : "Fingerspell American Sign Language letters"}
                 </div>
               </div>
             )}

@@ -154,7 +154,7 @@ export function solveLetter(
   return new Map(names.map((n) => [n, bone(n).quaternion.clone()]));
 }
 
-/** يقسم النص لحروف ArASL (ال و لا حرف واحد) */
+/** يقسم النص لحروف: عربي ArASL (ال و لا حرف واحد) أو إنجليزي ASL */
 export function splitLetters(text: string, shapes: Handshapes) {
   const out: string[] = [];
   const chars = Array.from(
@@ -166,6 +166,7 @@ export function splitLetters(text: string, shapes: Handshapes) {
       out.push(pair);
       i++;
     } else if (shapes[chars[i]]) out.push(chars[i]);
+    else if (shapes[chars[i].toUpperCase()]) out.push(chars[i].toUpperCase());
     else if (chars[i] === " ") out.push(" ");
   }
   return out;

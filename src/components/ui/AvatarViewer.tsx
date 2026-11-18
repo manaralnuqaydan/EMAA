@@ -138,10 +138,13 @@ function AvatarModel({ action: currentAction }: { action?: string }) {
   }, []);
 
   useEffect(() => {
-    fetch("/data/handshapes_ar.json")
-      .then((res) => res.json())
-      .then((data: Handshapes) => (shapes.current = data))
-      .catch(() => {});
+    // أشكال اليد العربية (ArASL) والإنجليزية (ASL) إذا موجودة
+    for (const file of ["handshapes_ar", "handshapes_en"]) {
+      fetch(`/data/${file}.json`)
+        .then((res) => res.json())
+        .then((data: Handshapes) => Object.assign(shapes.current, data))
+        .catch(() => {});
+    }
 
     // يتهجى النص حرفًا حرفًا بأشكال يد مأخوذة من صور حقيقية
     const spell = (e: Event) => {
