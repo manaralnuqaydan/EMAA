@@ -45,3 +45,7 @@ model/.env
 model/results/*.keras
 model/asl_landmarks.npz
 model/asl_alphabet_train/
+# ASL Citizen (Microsoft Research License: no redistribution)
+model/asl_citizen_landmarks.npz
+model/asl_citizen_cache/
+model/ASL_Citizen*.zip

@@ -23,7 +23,8 @@
     "aslShort": "ASL",
     "chooseHint": "Choose the sign language before starting the camera. Interface language and sign language are independent.",
     "active": "Active sign language: {name}",
-    "aslNotReady": "The ASL model has not been trained yet, so ASL recognition is not available."
+    "aslNotReady": "The ASL model has not been trained yet, so ASL recognition is not available.",
+    "aslWordsNotReady": "The ASL word model has not been trained yet (waiting for ASL Citizen data)."
   },
   "notFound": {
     "text": "Page not found",
@@ -108,7 +109,11 @@
     "letters": "Letters",
     "phrases": "Phrases",
     "recogMode": "Recognition type",
-    "hintPhrases": "Sign a phrase: \"Assalamu alaikum\" or \"How are you\" (original model, two phrases only)"
+    "hintPhrases": "Sign a phrase: \"Assalamu alaikum\" or \"How are you\" (original model, two phrases only)",
+    "words": "Words",
+    "hintAslWords": "Sign a whole ASL word, then lower your hands; the model reads the movement",
+    "wordUnsure": "The model is not sure. Closest: {words}",
+    "loadingHolistic": "Loading body and hand tracker..."
   },
   "overview": {
     "splash": "Emaa splash screen",

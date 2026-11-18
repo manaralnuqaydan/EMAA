@@ -34,6 +34,15 @@ import {
   correctWord,
   suggestWords,
 } from "@/lib/arasl";
+import {
+  MIN_SIGN_FRAMES,
+  SIGN_END_MS,
+  hasHands,
+  holisticFrame,
+  loadHolisticScript,
+  resampleSequence,
+  type HolisticResults,
+} from "@/lib/aslWords";
 
 type Landmark = { x: number; y: number };
 type Replies = Record<string, { response: string }>;
@@ -73,7 +82,11 @@ const proactiveKeywords = [
   "help",
 ];
 
-type ApiStatus = { asl_letters: boolean; arsl_phrases?: boolean } | null;
+type ApiStatus = {
+  asl_letters: boolean;
+  asl_words?: boolean;
+  arsl_phrases?: boolean;
+} | null;
 const PHRASE_MIN_CONFIDENCE = 80;
 
 export function ChatScreen() {
@@ -103,6 +116,16 @@ export function ChatScreen() {
   const [arslMode, setArslMode] = useState<"letters" | "phrases">("letters");
   const arslModeRef = useRef(arslMode);
   arslModeRef.current = arslMode;
+  // في ASL: حروف (نقاط يد وحدة) أو كلمات (حركة كاملة بـ Holistic)
+  const [aslMode, setAslMode] = useState<"letters" | "words">("letters");
+  const aslModeRef = useRef(aslMode);
+  aslModeRef.current = aslMode;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const holisticRef = useRef<any>(null);
+  const [holisticLoading, setHolisticLoading] = useState(false);
+  const signFramesRef = useRef<number[][]>([]);
+  const lastHandsAtRef = useRef(0);
+  const [wordHint, setWordHint] = useState<string | null>(null);
   const [spellCaption, setSpellCaption] = useState<{
     letters: string[];
     index: number;
@@ -139,7 +162,86 @@ export function ChatScreen() {
       .then((data) => setApiStatus(data.models ?? null))
       .catch(() => setApiStatus(null));
   }, []);
-  const aslUnavailable = signLang === "asl" && apiStatus?.asl_letters === false;
+  const usingAslWords = signLang === "asl" && aslMode === "words";
+  const aslUnavailable =
+    signLang === "asl" &&
+    (usingAslWords
+      ? apiStatus !== null && !apiStatus.asl_words
+      : apiStatus?.asl_letters === false);
+
+  // نحمّل Holistic بس لما نحتاجه (وضع كلمات ASL)
+  useEffect(() => {
+    if (!usingAslWords || holisticRef.current) return;
+    setHolisticLoading(true);
+    loadHolisticScript()
+      .then(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const Holistic = (window as any).Holistic;
+        const h = new Holistic({
+          locateFile: (file: string) =>
+            `https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1675471629/${file}`,
+        });
+        h.setOptions({
+          modelComplexity: 1,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+        h.onResults((r: HolisticResults) => onHolisticResults(r));
+        holisticRef.current = h;
+      })
+      .catch(() => setApiError(true))
+      .finally(() => setHolisticLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usingAslWords]);
+
+  // نجمع لقطات الإشارة، ولما تختفي اليدين نرسل الحركة كاملة
+  const onHolisticResults = (r: HolisticResults) => {
+    if (!isDetectingRef.current) return;
+    const now = Date.now();
+    const visible = hasHands(r);
+    setHandVisible(visible);
+    if (visible) {
+      signFramesRef.current.push(holisticFrame(r));
+      lastHandsAtRef.current = now;
+      return;
+    }
+    const frames = signFramesRef.current;
+    if (!frames.length || now - lastHandsAtRef.current < SIGN_END_MS) return;
+    signFramesRef.current = [];
+    if (frames.length >= MIN_SIGN_FRAMES)
+      sendSequenceToAPI(resampleSequence(frames));
+  };
+
+  const sendSequenceToAPI = async (frames: number[][]) => {
+    try {
+      const res = await fetch(`${SIGN_API_URL}/predict-asl-word`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ frames }),
+      });
+      const data: {
+        prediction: string;
+        confidence: number;
+        top: { word: string }[];
+      } = await res.json();
+      setApiError(false);
+      setConfidence(data.confidence);
+      if (!data.prediction) return;
+      if (data.confidence < MIN_CONFIDENCE) {
+        // ما نخمّن: نعرض أقرب الكلمات ونخلي المستخدم يختار أو يعيد
+        setWordHint(data.top.map((w) => w.word.toLowerCase()).join("، "));
+        return;
+      }
+      setWordHint(null);
+      const word = data.prediction.toLowerCase();
+      setWord(wordRef.current + word + " ");
+      if (autoSpeakRef.current) speak(word);
+      answer(wordRef.current);
+    } catch (err) {
+      setApiError(true);
+      console.error("خطأ في الاتصال بالـ API:", err);
+    }
+  };
 
   // شريط تحت الأفاتار يبين الحرف اللي يأشّره الحين
   useEffect(() => {
@@ -251,9 +353,12 @@ export function ChatScreen() {
   }, []);
 
   const processFrame = useCallback(async () => {
-    if (!isDetectingRef.current || !handsRef.current || !videoRef.current)
-      return;
-    await handsRef.current.send({ image: videoRef.current });
+    if (!isDetectingRef.current || !videoRef.current) return;
+    const tracker =
+      langRef.current === "en" && aslModeRef.current === "words"
+        ? holisticRef.current
+        : handsRef.current;
+    if (tracker) await tracker.send({ image: videoRef.current });
     animFrameRef.current = requestAnimationFrame(processFrame);
   }, []);
 
@@ -671,6 +776,45 @@ export function ChatScreen() {
               ))}
             </div>
           )}
+          {signLang === "asl" && (
+            <div
+              role="radiogroup"
+              aria-label={t("live.recogMode")}
+              className="relative mt-2 flex w-fit gap-0.5 rounded-full bg-white/10 p-1 text-[11px] font-bold"
+            >
+              {(["letters", "words"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={aslMode === m}
+                  onClick={() => {
+                    setAslMode(m);
+                    signFramesRef.current = [];
+                    pendingCountRef.current = 0;
+                    committedLetterRef.current = "";
+                    setWordHint(null);
+                  }}
+                  className={`rounded-full px-3 py-1 transition-all ${aslMode === m ? "grad-purple text-white" : "text-white/60"}`}
+                >
+                  {t(`live.${m}`)}
+                </button>
+              ))}
+            </div>
+          )}
+          {usingAslWords && holisticLoading && (
+            <div className="relative mt-2 text-[11px] text-white/60">
+              {t("live.loadingHolistic")}
+            </div>
+          )}
+          {wordHint && (
+            <div
+              role="status"
+              className="relative mt-2 rounded-xl bg-white/10 px-3 py-2 text-[11px] text-white/80"
+            >
+              {t("live.wordUnsure", { words: wordHint })}
+            </div>
+          )}
           {cameraError && (
             <div
               role="alert"
@@ -686,7 +830,9 @@ export function ChatScreen() {
               className="relative mt-2 flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-[11px] text-amber-100"
             >
               <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-300" />
-              {t("signLang.aslNotReady")}
+              {usingAslWords
+                ? t("signLang.aslWordsNotReady")
+                : t("signLang.aslNotReady")}
             </div>
           )}
 
@@ -715,7 +861,9 @@ export function ChatScreen() {
                     strokeWidth={1.4}
                   />
                   {lang === "en"
-                    ? t("live.hintAsl")
+                    ? aslMode === "words"
+                      ? t("live.hintAslWords")
+                      : t("live.hintAsl")
                     : arslMode === "phrases"
                       ? t("live.hintPhrases")
                       : t("live.hintArsl")}

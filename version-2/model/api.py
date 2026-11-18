@@ -48,6 +48,15 @@ if os.path.exists('phrases_model.pkl'):
         print(f"⚠️ موديل العبارات ما اشتغل: {e}")
 
 
+# موديل كلمات ASL (تسلسل نقاط Holistic) من asl_words_train.py، إذا كان موجود
+asl_words_net, asl_words_classes = None, []
+if os.path.exists('asl_words.onnx'):
+    from asl_words_features import FEATURES, FRAMES, normalize_sequence
+    asl_words_net = cv2.dnn.readNetFromONNX('asl_words.onnx')
+    with open('asl_words_classes.json', encoding='utf-8') as f:
+        asl_words_classes = json.load(f)
+
+
 class ImageInput(BaseModel):
     image: str  # صورة اليد المقصوصة كـ data URL أو base64
 
@@ -121,12 +130,31 @@ def predict_phrase(data: PhraseInput):
             "confidence": float(prob[best]) * 100}
 
 
+class SequenceInput(BaseModel):
+    frames: list[list[float]]  # 32 لقطة × 153 قيمة (أعلى الجسم + اليدين) بإحداثيات الصورة
+
+
+@app.post("/predict-asl-word")
+def predict_asl_word(data: SequenceInput):
+    # يرجع أفضل 3 كلمات مع الثقة؛ الواجهة ترفض الثقة المنخفضة بدل ما تخمّن
+    if asl_words_net is None:
+        return {"prediction": "", "confidence": 0, "top": []}
+    seq = np.array(data.frames, dtype=np.float32)
+    if seq.shape != (FRAMES, FEATURES):
+        return {"prediction": "", "confidence": 0, "top": []}
+    asl_words_net.setInput(normalize_sequence(seq)[None])
+    prob = asl_words_net.forward()[0]
+    top = np.argsort(prob)[::-1][:3]
+    return {"prediction": asl_words_classes[int(top[0])], "confidence": float(prob[top[0]]) * 100,
+            "top": [{"word": asl_words_classes[int(i)], "confidence": float(prob[i]) * 100} for i in top]}
+
+
 @app.get("/")
 def root():
     # الواجهة تقرأ هذا عشان تعرف وش المتاح فعلًا وما تدّعي شي غير موجود
     return {
         "status": "EEMAA API running ✅",
         "models": {"arsl_letters": True, "arsl_phrases": phrase_model is not None,
-                   "asl_letters": asl_net is not None},
+                   "asl_letters": asl_net is not None, "asl_words": asl_words_net is not None},
         "chatbot": chatbot._client is not None,
     }
