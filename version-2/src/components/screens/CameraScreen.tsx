@@ -357,6 +357,9 @@ export function CameraScreen() {
               <Send className="h-4 w-4 text-white rtl:-scale-x-100" />
             </button>
           </form>
+          <p className="mt-1.5 text-center text-[10px] text-white/45">
+            {t("privacy.chatNote")}
+          </p>
         </div>
       </div>
 

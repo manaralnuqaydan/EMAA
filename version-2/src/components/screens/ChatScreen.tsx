@@ -18,6 +18,7 @@ import { Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect, useCallback } from "react";
 import AvatarViewer from "@/components/ui/AvatarViewer";
 import SpellCaption from "@/components/ui/SpellCaption";
+import CameraConsent, { hasCameraConsent } from "@/components/ui/CameraConsent";
 import { speak, stopSpeaking, useSpeechToText } from "@/lib/speech";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -135,6 +136,7 @@ export function ChatScreen() {
   const [wordHint, setWordHint] = useState<string | null>(null);
 
   const retryCountRef = useRef<number>(0);
+  const [askConsent, setAskConsent] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -910,8 +912,24 @@ export function ChatScreen() {
                 {partialWord}
               </div>
             )}
+            {askConsent && (
+              <CameraConsent
+                onAccept={() => {
+                  setAskConsent(false);
+                  startDetection();
+                }}
+                onCancel={() => setAskConsent(false)}
+              />
+            )}
             <button
-              onClick={isDetecting ? stopDetection : startDetection}
+              onClick={
+                isDetecting
+                  ? stopDetection
+                  : () =>
+                      hasCameraConsent()
+                        ? startDetection()
+                        : setAskConsent(true)
+              }
               className={`absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-glow transition-all ${isDetecting ? "bg-rose-500 text-white" : "grad-purple text-white"}`}
             >
               {isDetecting ? (

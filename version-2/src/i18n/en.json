@@ -140,5 +140,14 @@
     "whQuestion": "Wh-question: brows lowered",
     "yesnoQuestion": "Yes/no question: brows raised",
     "animationNote": "Procedural fingerspelling (not motion capture of a Deaf signer)"
+  },
+  "privacy": {
+    "title": "Before the camera starts",
+    "camera": "The camera runs in your browser. Only a cropped 64×64 hand image or hand landmarks are sent to the Emaa server for recognition. Nothing is stored and no video is recorded.",
+    "assistant": "If you send to the assistant, only the text goes to Claude by Anthropic so it can reply.",
+    "limits": "Translation is automatic and can be wrong. Do not rely on it for medical, legal or emergency situations; use a certified sign-language interpreter.",
+    "agree": "Agree and start camera",
+    "cancel": "Cancel",
+    "chatNote": "Your messages are sent to Claude by Anthropic to generate replies. Do not share sensitive information."
   }
 }

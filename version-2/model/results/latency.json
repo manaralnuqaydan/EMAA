@@ -1,0 +1,41 @@
+{
+ "arsl_letters_cnn": {
+  "model_only": {
+   "mean_ms": 1.56,
+   "median_ms": 1.41,
+   "p95_ms": 2.02,
+   "runs": 300
+  },
+  "api_request": {
+   "mean_ms": 5.56,
+   "median_ms": 5.39,
+   "p95_ms": 6.69,
+   "runs": 300
+  }
+ },
+ "arsl_phrases_rf": {
+  "model_only": {
+   "mean_ms": 4.53,
+   "median_ms": 4.11,
+   "p95_ms": 5.9,
+   "runs": 300
+  },
+  "api_request": {
+   "mean_ms": 9.97,
+   "median_ms": 9.15,
+   "p95_ms": 12.55,
+   "runs": 300
+  }
+ },
+ "asl_letters": "Not Measured (model not trained yet)",
+ "asl_words": "Not Measured (model not trained yet)",
+ "chatbot_claude": "Not Measured (depends on network and API; only a local mock was tested)",
+ "browser_mediapipe": "Not Measured (runs on the user device)",
+ "hardware": {
+  "cpu": "x86_64",
+  "cores": 4,
+  "python": "3.13.18",
+  "opencv": "5.1.0",
+  "note": "cloud container CPU, no GPU"
+ }
+}
