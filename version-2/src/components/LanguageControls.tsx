@@ -11,6 +11,8 @@ export function LanguageSwitcher({ dark = false }: { dark?: boolean }) {
   return (
     <div
       role="group"
+      // ترتيب الخيارين ثابت في العربي والإنجليزي عشان الزر ما يتنقل لما تتبدل اللغة
+      dir="ltr"
       aria-label={t("common.uiLanguage")}
       className={`flex h-10 items-center gap-0.5 rounded-full p-1 text-[11px] font-bold ${dark ? "glass-dark" : "glass shadow-soft"}`}
     >
@@ -25,7 +27,7 @@ export function LanguageSwitcher({ dark = false }: { dark?: boolean }) {
           lang={o.id}
           aria-pressed={lang === o.id}
           onClick={() => setLang(o.id)}
-          className={`h-8 rounded-full px-2.5 transition-all ${
+          className={`h-8 min-w-[4.25rem] rounded-full px-2.5 transition-all ${
             lang === o.id
               ? "grad-purple text-white shadow-soft"
               : dark
