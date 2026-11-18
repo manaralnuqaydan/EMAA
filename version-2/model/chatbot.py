@@ -63,6 +63,11 @@ FALLBACK = {
     'ar': 'عذرًا، المساعد غير متصل الآن. جرّب مرة ثانية بعد قليل.',
     'en': 'Sorry, the assistant is offline right now. Please try again shortly.',
 }
+# الخادم شغال لكن ما فيه مفتاح Claude في model/.env
+NO_KEY = {
+    'ar': 'المساعد الذكي غير مفعّل لأن مفتاح Claude غير موجود. أقدر أرد على عبارات بسيطة فقط.',
+    'en': 'The AI assistant is not enabled because the Claude key is missing. I can only answer simple phrases.',
+}
 
 
 def _context(ui_lang, sign_lang):
@@ -74,19 +79,19 @@ def _context(ui_lang, sign_lang):
             f"{sign_words} of your reply, for the avatar to fingerspell. Never mix Arabic and ASL in `sign`.")
 
 
-def _offline_reply(text, sign_lang='arsl'):
+def _offline_reply(text, sign_lang='arsl', fallback=None):
     # بدون اتصال: ردود جاهزة من dataset.json (مو ذكاء اصطناعي)
     key = next((k for k in sorted(_replies, key=len, reverse=True) if k in text), None)
     if key:
         answer = _replies[key]['response']
         return {'ar': answer, 'en': '', 'sign': answer if sign_lang == 'arsl' else '', 'source': 'dataset'}
-    return {**FALLBACK, 'sign': '', 'source': 'offline'}
+    return {**(fallback or FALLBACK), 'sign': '', 'source': 'offline'}
 
 
 def reply(messages, ui_lang='ar', sign_lang='arsl'):
     """messages: [{"role": "user"|"assistant", "content": str}, ...] ينتهي برسالة المستخدم."""
     if _client is None:
-        return _offline_reply(messages[-1]['content'], sign_lang)
+        return _offline_reply(messages[-1]['content'], sign_lang, NO_KEY)
     history = messages[-20:]
     while history and history[0]['role'] != 'user':
         history = history[1:]
