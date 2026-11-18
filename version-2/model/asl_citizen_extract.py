@@ -10,14 +10,22 @@
     .venv-mp\\Scripts\\python asl_citizen_extract.py --zip D:\\ASL_Citizen.zip --words 100
 
 يكمل من حيث وقف إذا انقطع (يحفظ كل فيديو في مجلد cache).
+
+بدون تنزيل 42 جيجا: حطوا رابط التنزيل بدل مسار الملف، والسكربت ينزّل من الملف على الإنترنت
+فهرس الملفات وفيديوهات الكلمات المختارة فقط (HTTP Range)، ويمسح كل فيديو بعد ما يطلع نقاطه:
+
+    .venv-mp\\Scripts\\python asl_citizen_extract.py --zip "https://...ASL_Citizen.zip" --words 100
 """
 import argparse
 import csv
 import io
 import os
 import re
+import shutil
 import sys
 import tempfile
+import time
+import urllib.request
 import zipfile
 from collections import Counter, defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -39,6 +47,84 @@ TEACHER STUDENT TIME TODAY TOMORROW YESTERDAY NOW LATER MORNING NIGHT DAY WEEK M
 CAR BUS STOP WAIT AGAIN SLOW FAST GOOD BAD HAPPY SAD TIRED HUNGRY THIRSTY COLD HOT MORE
 FINISH START OPEN CLOSE LOVE NICE MEET WELCOME FINE SEE LOOK WRITE READ
 """.split()
+
+
+class HttpZipFile(io.RawIOBase):
+    """ملف على الإنترنت نقرأه بأجزاء (HTTP Range) عشان zipfile يفتحه بدون تنزيله كامل."""
+
+    BLOCK = 1 << 20  # 1MB
+
+    def __init__(self, url):
+        self.url, self.pos, self.blocks = url, 0, {}
+        req = urllib.request.Request(url, headers={'Range': 'bytes=0-0'})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            total = r.headers.get('Content-Range', '').rsplit('/', 1)[-1]
+            if r.status != 206 or not total.isdigit():
+                sys.exit("الخادم ما يدعم التنزيل الجزئي. نزّلوا الملف كامل أو جربوا رابط ثاني.")
+        self.size = int(total)
+        self.downloaded = 0
+
+    def readable(self):
+        return True
+
+    def seekable(self):
+        return True
+
+    def tell(self):
+        return self.pos
+
+    def seek(self, offset, whence=0):
+        self.pos = [offset, self.pos + offset, self.size + offset][whence]
+        return self.pos
+
+    def _get(self, start, end):
+        for attempt in range(5):
+            try:
+                req = urllib.request.Request(self.url, headers={'Range': f'bytes={start}-{end}'})
+                with urllib.request.urlopen(req, timeout=120) as r:
+                    data = r.read()
+                self.downloaded += len(data)
+                return data
+            except OSError:
+                if attempt == 4:
+                    raise
+                time.sleep(2 ** attempt)
+
+    def read(self, n=-1):
+        if n is None or n < 0:
+            n = self.size - self.pos
+        n = min(n, self.size - self.pos)
+        if n <= 0:
+            return b''
+        if n >= self.BLOCK:  # قطعة كبيرة (فيديو): نطلبها مرة وحدة
+            data = self._get(self.pos, self.pos + n - 1)
+        else:  # قراءات صغيرة (الفهرس): نخزن أجزاء 1MB
+            out = bytearray()
+            p = self.pos
+            while len(out) < n:
+                b = p // self.BLOCK
+                if b not in self.blocks:
+                    if len(self.blocks) > 64:
+                        self.blocks.clear()
+                    s = b * self.BLOCK
+                    self.blocks[b] = self._get(s, min(s + self.BLOCK, self.size) - 1)
+                chunk = self.blocks[b][p - b * self.BLOCK:]
+                out += chunk[:n - len(out)]
+                p += len(chunk)
+            data = bytes(out)
+        self.pos += len(data)
+        return data
+
+    def readinto(self, buf):
+        data = self.read(len(buf))
+        buf[:len(data)] = data
+        return len(data)
+
+
+def open_zip(src):
+    if src.startswith(('http://', 'https://')):
+        return zipfile.ZipFile(io.BufferedReader(HttpZipFile(src), buffer_size=1 << 16))
+    return zipfile.ZipFile(src)
 
 
 def norm(s):
@@ -89,32 +175,31 @@ def resample(seq):
 
 
 def extract(args):
-    zip_path, member, cache_file = args
+    video_path, cache_file = args
     import cv2
     import mediapipe as mp
 
-    with zipfile.ZipFile(zip_path) as zf, tempfile.TemporaryDirectory() as tmp:
-        path = zf.extract(member, tmp)
-        cap = cv2.VideoCapture(path)
-        frames = []
-        with mp.solutions.holistic.Holistic(static_image_mode=False, model_complexity=1,
-                                            min_detection_confidence=0.5) as holistic:
-            while True:
-                ok, img = cap.read()
-                if not ok:
-                    break
-                res = holistic.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                f = np.zeros((len(POSE_IDS) + 42, 3), np.float32)
-                if res.pose_landmarks:
-                    lm = res.pose_landmarks.landmark
-                    f[:len(POSE_IDS)] = [[lm[i].x, lm[i].y, lm[i].z] for i in POSE_IDS]
-                # right_hand/left_hand في MediaPipe من منظور الشخص نفسه
-                for k, hand in enumerate([res.right_hand_landmarks, res.left_hand_landmarks]):
-                    if hand:
-                        s = len(POSE_IDS) + 21 * k
-                        f[s:s + 21] = [[p.x, p.y, p.z] for p in hand.landmark]
-                frames.append(f)
-        cap.release()
+    cap = cv2.VideoCapture(video_path)
+    frames = []
+    with mp.solutions.holistic.Holistic(static_image_mode=False, model_complexity=1,
+                                        min_detection_confidence=0.5) as holistic:
+        while True:
+            ok, img = cap.read()
+            if not ok:
+                break
+            res = holistic.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            f = np.zeros((len(POSE_IDS) + 42, 3), np.float32)
+            if res.pose_landmarks:
+                lm = res.pose_landmarks.landmark
+                f[:len(POSE_IDS)] = [[lm[i].x, lm[i].y, lm[i].z] for i in POSE_IDS]
+            # right_hand/left_hand في MediaPipe من منظور الشخص نفسه
+            for k, hand in enumerate([res.right_hand_landmarks, res.left_hand_landmarks]):
+                if hand:
+                    s = len(POSE_IDS) + 21 * k
+                    f[s:s + 21] = [[p.x, p.y, p.z] for p in hand.landmark]
+            frames.append(f)
+    cap.release()
+    os.remove(video_path)  # الفيديو ما يبقى على الجهاز بعد ما نطلع نقاطه
     seq = np.array(frames)
     if not len(seq):
         np.save(cache_file, np.zeros((0, FEATURES), np.float32))
@@ -139,9 +224,9 @@ def main():
     p.add_argument('--limit', type=int, default=0, help='للتجربة: عدد فيديوهات محدود')
     a = p.parse_args()
 
-    with zipfile.ZipFile(a.zip) as zf:
-        rows, video_dir = read_splits(zf)
-        members = set(zf.namelist())
+    zf = open_zip(a.zip)
+    rows, video_dir = read_splits(zf)
+    members = set(zf.namelist())
     glosses = choose_glosses(rows, a.words)
     rows = [r for r in rows if r['gloss'] in glosses]
     if a.limit:
@@ -160,16 +245,34 @@ def main():
             continue
         r['cache'] = os.path.join(a.cache, norm(r['video']) + '.npy')
         if not os.path.exists(r['cache']):
-            jobs.append((a.zip, member, r['cache']))
+            jobs.append((member, r['cache']))
 
     print(f"باقي {len(jobs)} فيديو يحتاج استخراج")
-    done = 0
+    tmp = tempfile.mkdtemp(prefix='aslc_')
+    done, pending = 0, set()
     with ProcessPoolExecutor(a.workers) as pool:
-        for fut in as_completed([pool.submit(extract, j) for j in jobs]):
+        for member, cache_file in jobs:
+            # نطلع الفيديو (أو ننزله) واحد واحد، وما نخلي أكثر من workers×3 فيديو على الجهاز
+            path = os.path.join(tmp, os.path.basename(cache_file) + os.path.splitext(member)[1])
+            with zf.open(member) as src, open(path, 'wb') as dst:
+                dst.write(src.read())
+            pending.add(pool.submit(extract, (path, cache_file)))
+            while len(pending) >= a.workers * 3:
+                finished = next(as_completed(pending))
+                pending.discard(finished)
+                finished.result()
+                done += 1
+                if done % 25 == 0:
+                    print(f"✅ {done}/{len(jobs)}", flush=True)
+        for fut in as_completed(pending):
             fut.result()
             done += 1
-            if done % 25 == 0 or done == len(jobs):
-                print(f"✅ {done}/{len(jobs)}", flush=True)
+    print(f"✅ {done}/{len(jobs)}", flush=True)
+    raw = getattr(getattr(zf.fp, 'raw', None), 'downloaded', None)
+    if raw is not None:
+        print(f"نزّلنا {raw / 1e9:.2f} GB فقط من الملف")
+    zf.close()
+    shutil.rmtree(tmp, ignore_errors=True)
 
     xs, ys, splits, users, frames_with_hands = [], [], [], [], defaultdict(int)
     for r in rows:
