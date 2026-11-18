@@ -36,6 +36,18 @@ if os.path.exists('asl_model.onnx'):
         asl_classes = json.load(f)
 
 
+# موديل العبارات الأصلي من النسخة الأولى (السلام عليكم، كيف حالك): RandomForest على 21 نقطة يد
+phrase_model = None
+if os.path.exists('phrases_model.pkl'):
+    try:
+        import pickle
+
+        with open('phrases_model.pkl', 'rb') as f:
+            phrase_model = pickle.load(f)
+    except Exception as e:  # scikit-learn مو مثبت مثلًا
+        print(f"⚠️ موديل العبارات ما اشتغل: {e}")
+
+
 class ImageInput(BaseModel):
     image: str  # صورة اليد المقصوصة كـ data URL أو base64
 
@@ -93,6 +105,28 @@ def chat(data: ChatInput):
     return chatbot.reply([m.model_dump() for m in data.messages])
 
 
+class PhraseInput(BaseModel):
+    landmarks: list[list[float]]  # 21 نقطة (x, y, z) بإحداثيات الصورة من MediaPipe
+
+
+@app.post("/predict-phrase")
+def predict_phrase(data: PhraseInput):
+    # نفس منطق /predict-landmarks في النسخة الأصلية، لكن باسم أوضح
+    if phrase_model is None or len(data.landmarks) != 21:
+        return {"prediction": "", "confidence": 0}
+    flat = np.array(data.landmarks, dtype=np.float64).reshape(1, -1)
+    prob = phrase_model.predict_proba(flat)[0]
+    best = int(np.argmax(prob))
+    return {"prediction": str(phrase_model.classes_[best]).replace('_', ' '),
+            "confidence": float(prob[best]) * 100}
+
+
 @app.get("/")
 def root():
-    return {"status": "EEMAA API running ✅"}
+    # الواجهة تقرأ هذا عشان تعرف وش المتاح فعلًا وما تدّعي شي غير موجود
+    return {
+        "status": "EEMAA API running ✅",
+        "models": {"arsl_letters": True, "arsl_phrases": phrase_model is not None,
+                   "asl_letters": asl_net is not None},
+        "chatbot": chatbot._client is not None,
+    }

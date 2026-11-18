@@ -1,7 +1,10 @@
 import { Camera, Home, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useI18n } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageControls";
 
 export function HomeScreen() {
+  const { t } = useI18n();
   return (
     <div className="relative h-full w-full grad-soft">
       {/* floating shapes */}
@@ -21,14 +24,18 @@ export function HomeScreen() {
           <div className="mt-2 text-[10px] tracking-[0.35em] text-muted-foreground/80 uppercase">Eemaa</div>
         </div>
 
+        <div className="mt-4 flex justify-center">
+          <LanguageSwitcher />
+        </div>
+
         {/* AI ready chip */}
-        <div className="mt-6 flex justify-center">
+        <div className="mt-4 flex justify-center">
           <div className="flex items-center gap-2 rounded-full glass px-3.5 py-1.5 shadow-soft">
             <span className="relative grid h-2 w-2 place-items-center">
               <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60" />
               <span className="relative h-2 w-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="text-[11px] font-medium text-foreground/80">الذكاء الاصطناعي جاهز</span>
+            <span className="text-[11px] font-medium text-foreground/80">{t("home.aiReady")}</span>
             <Sparkles className="h-3 w-3 text-primary" />
           </div>
         </div>
@@ -41,7 +48,7 @@ export function HomeScreen() {
             <div className="absolute -inset-3 animate-pulse-glow rounded-full" />
             <Link
               to="/modes"
-              aria-label="فتح وضع الترجمة"
+              aria-label={t("home.open")}
               className="relative grid h-44 w-44 place-items-center rounded-full text-white shadow-glow grad-purple"
             >
               <div className="absolute inset-2 rounded-full border border-white/30" />
@@ -52,12 +59,12 @@ export function HomeScreen() {
 
           <div className="text-center">
             <h2 className="text-[26px] font-light tracking-tight text-foreground" style={{ fontWeight: 300, letterSpacing: "-0.01em" }}>
-              <span className="font-semibold text-gradient">نفهمك</span>
+              <span className="font-semibold text-gradient">{t("home.headline1")}</span>
               <span className="mx-2 text-foreground/40">…</span>
-              <span className="text-foreground/85">بدون صوت</span>
+              <span className="text-foreground/85">{t("home.headline2")}</span>
             </h2>
             <p className="mt-3 text-[11px] tracking-[0.18em] text-muted-foreground">
-              اضغط للتفعيل · ترجمة فورية
+              {t("home.tap")}
             </p>
           </div>
         </div>
@@ -68,11 +75,11 @@ export function HomeScreen() {
             <Link
               to="/home"
               className="relative flex flex-col items-center gap-1 px-6 py-1"
-              aria-label="الرئيسية"
+              aria-label={t("common.home")}
             >
               <div className="absolute -top-1 h-1 w-6 rounded-full grad-purple" />
               <Home className="h-5 w-5 text-primary" strokeWidth={2.2} />
-              <span className="text-[9px] font-semibold text-primary">الرئيسية</span>
+              <span className="text-[9px] font-semibold text-primary">{t("common.home")}</span>
             </Link>
 
           </div>

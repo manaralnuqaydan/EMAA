@@ -1,6 +1,8 @@
 import handGlow from "@/assets/hand-glow.png";
+import { useI18n } from "@/lib/i18n";
 
 export function SplashScreen() {
+  const { t } = useI18n();
   return (
     <div className="relative h-full w-full grad-deep">
       {/* ambient glows */}
@@ -29,13 +31,13 @@ export function SplashScreen() {
 
           <div className="text-center">
             <h1 className="text-6xl font-black tracking-tight text-gradient">إيماء</h1>
-            <p className="mt-3 text-base font-medium text-white/90">تواصل يفهمك… حتى بدون كلام</p>
+            <p className="mt-3 text-base font-medium text-white/90">{t("splash.tagline")}</p>
           </div>
         </div>
 
         <div className="flex w-full flex-col items-center gap-3">
           <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="absolute inset-y-0 right-0 animate-loading rounded-full"
+            <div className="absolute inset-y-0 rtl:right-0 ltr:left-0 animate-loading rounded-full"
               style={{ background: "linear-gradient(90deg, oklch(0.75 0.2 295), oklch(0.85 0.15 250))" }} />
           </div>
         </div>

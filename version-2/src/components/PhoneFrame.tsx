@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { useI18n } from "@/lib/i18n";
 
 interface Props {
   children: ReactNode;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function PhoneFrame({ children, label, caption }: Props) {
+  const { dir } = useI18n();
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="text-center">
@@ -35,7 +37,7 @@ export function PhoneFrame({ children, label, caption }: Props) {
               <span className="opacity-0">.</span>
             </div>
             {/* Screen content */}
-            <div className="relative h-full w-full overflow-hidden" dir="rtl">
+            <div className="relative h-full w-full overflow-hidden" dir={dir}>
               {children}
             </div>
           </div>

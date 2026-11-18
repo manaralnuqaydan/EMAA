@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "title": "Emaa — Communication without limits"
+  },
+  "common": {
+    "back": "Back",
+    "home": "Home",
+    "clear": "Clear",
+    "listen": "Listen",
+    "send": "Send",
+    "stop": "Stop",
+    "hide": "Hide",
+    "save": "Save",
+    "newChat": "Start a new conversation",
+    "serverOffline": "Server offline",
+    "uiLanguage": "Interface language"
+  },
+  "signLang": {
+    "label": "Sign language",
+    "arsl": "Arabic Sign Language",
+    "arslShort": "ArSL",
+    "asl": "American Sign Language (ASL)",
+    "aslShort": "ASL",
+    "chooseHint": "Choose the sign language before starting the camera. Interface language and sign language are independent.",
+    "active": "Active sign language: {name}",
+    "aslNotReady": "The ASL model has not been trained yet, so ASL recognition is not available."
+  },
+  "notFound": {
+    "text": "Page not found",
+    "home": "Back to home"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "retry": "Try again"
+  },
+  "splash": {
+    "tagline": "Communication that understands you… even without words"
+  },
+  "home": {
+    "aiReady": "AI ready",
+    "open": "Open translation modes",
+    "headline1": "We understand you",
+    "headline2": "without sound",
+    "tap": "Tap to start · live translation"
+  },
+  "modes": {
+    "title": "Choose a mode",
+    "subtitle": "Each mode is designed for a different way to communicate",
+    "first": "Mode 1",
+    "chatTitle": "Chat with the Emaa assistant",
+    "chatDesc": "Type a message; the AI assistant replies in text and voice, and the avatar fingerspells the reply",
+    "start": "Start now",
+    "second": "Mode 2",
+    "liveTitle": "Live sign to text and voice",
+    "liveDesc": "Fingerspell in front of the camera; the AI reads the letters and speaks them",
+    "try": "Try it"
+  },
+  "assistant": {
+    "greeting": "Hello, I am Emaa, your smart assistant. How can I help you today?",
+    "online": "AI assistant",
+    "offlineMode": "Offline mode",
+    "proactiveOn": "Help suggestion",
+    "proactiveTitle": "We noticed words that suggest difficulty:",
+    "proactiveReason": "Words like \"I don't understand\" or \"problem\" appeared repeatedly (keyword matching, not AI analysis).",
+    "panelTitle": "Emaa interactive assistant",
+    "panelGuide": "Guidance after detecting difficulty",
+    "live": "Live",
+    "typing": "Emaa is typing...",
+    "placeholder": "Type a message to the assistant...",
+    "playVoice": "Play voice",
+    "serverDown": "The server is offline. Start api.py and try again.",
+    "you": "You",
+    "bot": "Emaa"
+  },
+  "live": {
+    "title": "Live conversation translation",
+    "waiting": "Waiting for signs...",
+    "defaultReply": "Of course, how can I help you?",
+    "pressStart": "Press start",
+    "translating": "Translating...",
+    "showHand": "Show your hand to the camera",
+    "user": "User · Noor",
+    "partner": "Partner · Ahmed",
+    "hintArsl": "Fingerspell Arabic Sign Language letters",
+    "hintAsl": "Fingerspell American Sign Language letters",
+    "confidence": "Model confidence",
+    "start": "Start detection",
+    "stop": "Stop",
+    "spellHint": "Spell the word letter by letter, then lower your hand for a second to end the word",
+    "idleHint": "Recognises letters and groups them into words",
+    "signText": "Sign translation",
+    "endWord": "End word",
+    "deleteLetter": "Delete letter",
+    "toSign": "Translating to sign",
+    "proactiveOn": "Help suggestion",
+    "liveSign": "Live signing",
+    "autoSpeakOn": "Auto-speak on",
+    "autoSpeakOff": "Auto-speak off",
+    "micStop": "Stop recording",
+    "mic": "Speak",
+    "speakNow": "Speak now...",
+    "typeToSign": "Type to turn text into signs...",
+    "noHandshape": "No handshape for this letter in {lang}; only the text is shown.",
+    "lowConfidence": "Confidence was low several times in a row. Try better lighting and bring your hand closer.",
+    "struggleOnce": "I'm here to help. It looks like this step is a little hard. Please sign it again.",
+    "struggleRepeat": "This step seems difficult. Try spelling the word slowly, or type it in the box.",
+    "cameraDenied": "Could not start the camera. Allow camera access in your browser and try again.",
+    "letters": "Letters",
+    "phrases": "Phrases",
+    "recogMode": "Recognition type",
+    "hintPhrases": "Sign a phrase: \"Assalamu alaikum\" or \"How are you\" (original model, two phrases only)"
+  },
+  "overview": {
+    "splash": "Emaa splash screen",
+    "home": "Home screen",
+    "mode": "Choose a mode",
+    "camera": "Chat with the assistant",
+    "chat": "Live camera translation",
+    "tagline": "Communication without limits · towards a more inclusive world"
+  }
+}

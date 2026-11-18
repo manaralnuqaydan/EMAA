@@ -18,6 +18,12 @@ import { Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect, useCallback } from "react";
 import AvatarViewer from "@/components/ui/AvatarViewer";
 import { speak, stopSpeaking, useSpeechToText } from "@/lib/speech";
+import { useI18n } from "@/lib/i18n";
+import {
+  LanguageSwitcher,
+  SignLanguagePicker,
+} from "@/components/LanguageControls";
+import type { SpellRequest } from "@/components/ui/AvatarViewer";
 import {
   ARASL_LETTERS,
   MIN_CONFIDENCE,
@@ -31,9 +37,6 @@ import {
 
 type Landmark = { x: number; y: number };
 type Replies = Record<string, { response: string }>;
-
-const WAITING_TEXT = "في انتظار الإشارة...";
-const DEFAULT_REPLY = "بالتأكيد، كيف يمكنني مساعدتك؟";
 
 const proactiveKeywords = [
   "لا اعرف",
@@ -61,23 +64,45 @@ const proactiveKeywords = [
   "ما رضي",
   "رفض",
   "فشل",
+  "dont know",
+  "problem",
+  "error",
+  "stuck",
+  "confused",
+  "hard",
+  "help",
 ];
 
+type ApiStatus = { asl_letters: boolean; arsl_phrases?: boolean } | null;
+const PHRASE_MIN_CONFIDENCE = 80;
+
 export function ChatScreen() {
+  const { t, lang: uiLang, signLang } = useI18n();
   const [signTranslation, setSignTranslation] = useState("");
-  const [replyText, setReplyText] = useState(DEFAULT_REPLY);
+  // null يعني الرد الافتراضي بلغة الواجهة الحالية
+  const [replyText, setReplyText] = useState<string | null>(null);
+  const shownReply = replyText ?? t("live.defaultReply");
   const [inputText, setInputText] = useState("");
   const [isDetecting, setIsDetecting] = useState(false);
   const [handVisible, setHandVisible] = useState(false);
   const [apiError, setApiError] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
   const [confidence, setConfidence] = useState<number | null>(null);
   const [isProactive, setIsProactive] = useState<boolean>(false);
   const [proactiveReason, setProactiveReason] = useState<string>("");
   const [autoSpeak, setAutoSpeak] = useState(true);
   // لغة الإشارة اللي يقرأها من الكاميرا: العربية (ArASL) أو الأمريكية (ASL)
-  const [lang, setLang] = useState<"ar" | "en">("ar");
+  // تنختار من شاشة الأوضاع أو من الزر هنا، ومستقلة عن لغة الواجهة
+  const lang = signLang === "asl" ? "en" : "ar";
   const langRef = useRef(lang);
   langRef.current = lang;
+  const tRef = useRef(t);
+  tRef.current = t;
+  const [apiStatus, setApiStatus] = useState<ApiStatus>(null);
+  // في العربي: حروف (موديل ArASL) أو عبارات (موديل النسخة الأصلية)
+  const [arslMode, setArslMode] = useState<"letters" | "phrases">("letters");
+  const arslModeRef = useRef(arslMode);
+  arslModeRef.current = arslMode;
   const [spellCaption, setSpellCaption] = useState<{
     letters: string[];
     index: number;
@@ -102,7 +127,19 @@ export function ChatScreen() {
   const pendingCountRef = useRef(0);
   const committedLetterRef = useRef<string>("");
 
-  const mic = useSpeechToText((text) => setInputText(text));
+  const mic = useSpeechToText(
+    (text) => setInputText(text),
+    uiLang === "ar" ? "ar-SA" : "en-US",
+  );
+
+  // نسأل الخادم وش الموديلات المتاحة فعلًا (مثلًا: هل موديل ASL متدرب؟)
+  useEffect(() => {
+    fetch(`${SIGN_API_URL}/`)
+      .then((res) => res.json())
+      .then((data) => setApiStatus(data.models ?? null))
+      .catch(() => setApiStatus(null));
+  }, []);
+  const aslUnavailable = signLang === "asl" && apiStatus?.asl_letters === false;
 
   // شريط تحت الأفاتار يبين الحرف اللي يأشّره الحين
   useEffect(() => {
@@ -195,6 +232,10 @@ export function ChatScreen() {
           if (world) sendLandmarksToAPI(world, side);
           return;
         }
+        if (arslModeRef.current === "phrases") {
+          sendPhraseToAPI(hand);
+          return;
+        }
         const image = cropHand(hand);
         if (image) sendImageToAPI(image);
       });
@@ -217,6 +258,7 @@ export function ChatScreen() {
   }, []);
 
   const startDetection = useCallback(async () => {
+    setCameraError(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
@@ -229,6 +271,7 @@ export function ChatScreen() {
       animFrameRef.current = requestAnimationFrame(processFrame);
     } catch (err) {
       console.error("خطأ في الكاميرا:", err);
+      setCameraError(true);
     }
   }, [processFrame]);
 
@@ -274,6 +317,49 @@ export function ChatScreen() {
       64,
     );
     return cropCanvasRef.current.toDataURL("image/jpeg", 0.9);
+  };
+
+  // العبارات: نرسل نقاط اليد الـ21 بإحداثيات الصورة، مثل النسخة الأصلية
+  const sendPhraseToAPI = async (
+    hand: { x: number; y: number; z: number }[],
+  ) => {
+    requestInFlight.current = true;
+    try {
+      const res = await fetch(`${SIGN_API_URL}/predict-phrase`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ landmarks: hand.map((p) => [p.x, p.y, p.z]) }),
+      });
+      const data = await res.json();
+      setApiError(false);
+      if (data.prediction) handlePhrase(data.prediction, data.confidence ?? 0);
+    } catch (err) {
+      setApiError(true);
+      console.error("خطأ في الاتصال بالـ API:", err);
+    } finally {
+      requestInFlight.current = false;
+    }
+  };
+
+  // الموديل الأصلي فيه عبارتين بس ودايم يختار وحدة منهم، فنطلب ثقة عالية وثبات
+  const handlePhrase = (phrase: string, conf: number) => {
+    setConfidence(conf);
+    if (conf < PHRASE_MIN_CONFIDENCE) {
+      pendingCountRef.current = 0;
+      return;
+    }
+    pendingCountRef.current =
+      phrase === pendingLetterRef.current ? pendingCountRef.current + 1 : 1;
+    pendingLetterRef.current = phrase;
+    if (
+      pendingCountRef.current < STABLE_READS + 1 ||
+      phrase === committedLetterRef.current
+    )
+      return;
+    committedLetterRef.current = phrase;
+    setWord(wordRef.current + phrase + " ");
+    if (autoSpeakRef.current) speak(phrase);
+    answer(wordRef.current);
   };
 
   const sendImageToAPI = async (image: string) => {
@@ -336,7 +422,7 @@ export function ChatScreen() {
       pendingCountRef.current = 0;
       retryCountRef.current += 1;
       if (retryCountRef.current >= 8)
-        triggerProactiveMode("Hesitation Filter: تردد المستخدم أو ثقة منخفضة.");
+        triggerProactiveMode(tRef.current("live.lowConfidence"));
       return;
     }
 
@@ -400,36 +486,32 @@ export function ChatScreen() {
 
   const resetAll = () => {
     clearTranslation();
-    setReplyText(DEFAULT_REPLY);
+    setReplyText(null);
     setInputText("");
     stopSpeaking();
   };
 
   const checkProactiveContext = (text: string) => {
+    const lower = text.toLowerCase();
     const hasStrugglingWord = proactiveKeywords.some((keyword) =>
-      text.includes(keyword),
+      lower.includes(keyword),
     );
     if (hasStrugglingWord) {
       retryCountRef.current += 1;
       if (retryCountRef.current >= 2) {
-        triggerProactiveMode(
-          "Background Context Analyzer: تكرار تعثر المستخدم.",
-        );
+        triggerProactiveMode(tRef.current("assistant.proactiveReason"));
       } else {
-        respond(
-          "أنا هنا لفهمك ومساعدتك، يبدو أنك تواجه صعوبة بسيطة في الخطوة الحالية. تفضل بإعادة الإشارة وسيقوم الأفاتار بإرشادك.",
-        );
+        respond(tRef.current("live.struggleOnce"));
       }
     }
   };
 
+  // مساعدة استباقية: تنبيه وإرشاد عند تكرار الثقة المنخفضة أو كلمات الصعوبة
+  // (مطابقة كلمات وقواعد بسيطة، مو تحليل بالذكاء الاصطناعي)
   const triggerProactiveMode = (reason: string) => {
     setIsProactive(true);
-    setConfidence(93);
     setProactiveReason(reason);
-    respond(
-      "⚠️ رصد استباقي: نلاحظ تكرار ترددك أو تعثرك في إتمام هذه الخطوة بالمنصة الرقمية. لتفادي إلغاء الطلب، نقترح عليك التأكد من تعبئة الحقول الإلزامية أولاً. هل تريد شرحاً مرئياً؟",
-    );
+    respond(tRef.current("live.struggleRepeat"));
   };
 
   // المحاور يكتب أو يتكلم، والأفاتار يترجم إلى إشارة
@@ -439,7 +521,11 @@ export function ChatScreen() {
     setInputText("");
     setReplyText(userText);
     // الأفاتار يتهجى النص حرفًا حرفًا بأشكال يد حقيقية من ArASL
-    window.dispatchEvent(new CustomEvent("spellText", { detail: userText }));
+    window.dispatchEvent(
+      new CustomEvent<SpellRequest>("spellText", {
+        detail: { text: userText, signLang },
+      }),
+    );
     if (autoSpeakRef.current) speak(userText);
   };
 
@@ -449,12 +535,13 @@ export function ChatScreen() {
   const suggestions = suggestWords(partialWord);
 
   const statusLabel = !isDetecting
-    ? "اضغط للبدء"
+    ? t("live.pressStart")
     : apiError
-      ? "الخادم غير متصل"
+      ? t("common.serverOffline")
       : handVisible
-        ? "جاري الترجمة..."
-        : "أظهر يدك للكاميرا";
+        ? t("live.translating")
+        : t("live.showHand");
+  const signLangName = t(`signLang.${signLang}`);
 
   return (
     <div
@@ -465,51 +552,34 @@ export function ChatScreen() {
       <div className="relative z-20 flex w-full shrink-0 items-center justify-between px-4 pt-5 pb-3 sm:px-5 md:pt-8 md:pb-4">
         <Link
           to="/modes"
-          aria-label="رجوع"
+          aria-label={t("common.back")}
           className="grid h-10 w-10 place-items-center rounded-full glass-dark"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4 ltr:-scale-x-100" />
         </Link>
         <div className="text-center leading-tight">
           <div className="text-[10px] tracking-[0.25em] text-white/50">
             LIVE
           </div>
-          <div className="text-sm font-semibold">
-            ترجمة محادثة فورية استباقية
-          </div>
+          <div className="text-sm font-semibold">{t("live.title")}</div>
         </div>
-        <div className="flex items-center gap-2">
-          <div
-            dir="ltr"
-            className="flex h-10 items-center rounded-full glass-dark p-1 text-[11px] font-bold"
-            role="group"
-            aria-label="لغة الإشارة"
-          >
-            {(["ar", "en"] as const).map((l) => (
-              <button
-                key={l}
-                onClick={() => {
-                  setLang(l);
-                  clearTranslation();
-                }}
-                title={
-                  l === "ar" ? "لغة الإشارة العربية" : "American Sign Language"
-                }
-                className={`h-8 rounded-full px-3 transition-all ${lang === l ? "grad-purple text-white shadow-soft" : "text-white/60"}`}
-              >
-                {l === "ar" ? "ع" : "ASL"}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <LanguageSwitcher dark />
+          <SignLanguagePicker
+            compact
+            dark
+            onChange={() => clearTranslation()}
+          />
           <button
             onClick={() => {
               if (autoSpeak) stopSpeaking();
               setAutoSpeak(!autoSpeak);
             }}
+            aria-pressed={autoSpeak}
             aria-label={
-              autoSpeak ? "إيقاف النطق التلقائي" : "تشغيل النطق التلقائي"
+              autoSpeak ? t("live.autoSpeakOn") : t("live.autoSpeakOff")
             }
-            title={autoSpeak ? "النطق التلقائي مفعّل" : "النطق التلقائي متوقف"}
+            title={autoSpeak ? t("live.autoSpeakOn") : t("live.autoSpeakOff")}
             className={`grid h-10 w-10 place-items-center rounded-full ${autoSpeak ? "grad-purple shadow-soft" : "glass-dark text-white/60"}`}
           >
             {autoSpeak ? (
@@ -520,8 +590,8 @@ export function ChatScreen() {
           </button>
           <button
             onClick={resetAll}
-            aria-label="بدء محادثة جديدة"
-            title="بدء محادثة جديدة"
+            aria-label={t("common.newChat")}
+            title={t("common.newChat")}
             className="grid h-10 w-10 place-items-center rounded-full glass-dark"
           >
             <RefreshCw className="h-4 w-4" />
@@ -533,13 +603,13 @@ export function ChatScreen() {
       {isProactive && (
         <div className="mx-4 mb-2 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/20 p-3 text-xs text-amber-200 animate-pulse sm:mx-5">
           <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
-          <div dir="rtl" className="flex-1 text-right">
-            <span className="font-bold">تحليل الخلفية المستمر:</span>{" "}
+          <div className="flex-1 text-start">
+            <span className="font-bold">{t("assistant.proactiveTitle")}</span>{" "}
             {proactiveReason}
           </div>
           <button
             onClick={() => setIsProactive(false)}
-            aria-label="إخفاء"
+            aria-label={t("common.hide")}
             className="text-amber-200/70 hover:text-amber-100"
           >
             <X className="h-3.5 w-3.5" />
@@ -571,8 +641,54 @@ export function ChatScreen() {
               </span>
               <span className="font-semibold">{statusLabel}</span>
             </div>
-            <div className="text-[10px] text-white/60">المستخدم · نور</div>
+            <div className="text-[10px] text-white/60">{t("live.user")}</div>
           </div>
+
+          <div className="relative mt-2 text-[11px] font-semibold text-white/80">
+            {t("signLang.active", { name: signLangName })}
+          </div>
+          {signLang === "arsl" && apiStatus?.arsl_phrases !== false && (
+            <div
+              role="radiogroup"
+              aria-label={t("live.recogMode")}
+              className="relative mt-2 flex w-fit gap-0.5 rounded-full bg-white/10 p-1 text-[11px] font-bold"
+            >
+              {(["letters", "phrases"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={arslMode === m}
+                  onClick={() => {
+                    setArslMode(m);
+                    pendingCountRef.current = 0;
+                    committedLetterRef.current = "";
+                  }}
+                  className={`rounded-full px-3 py-1 transition-all ${arslMode === m ? "grad-purple text-white" : "text-white/60"}`}
+                >
+                  {t(`live.${m}`)}
+                </button>
+              ))}
+            </div>
+          )}
+          {cameraError && (
+            <div
+              role="alert"
+              className="relative mt-2 flex items-center gap-2 rounded-xl border border-rose-400/40 bg-rose-500/15 px-3 py-2 text-[11px] text-rose-100"
+            >
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-300" />
+              {t("live.cameraDenied")}
+            </div>
+          )}
+          {aslUnavailable && (
+            <div
+              role="status"
+              className="relative mt-2 flex items-center gap-2 rounded-xl border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-[11px] text-amber-100"
+            >
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+              {t("signLang.aslNotReady")}
+            </div>
+          )}
 
           <div className="relative mt-3 aspect-[4/3] w-full shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-black/20 md:aspect-auto md:min-h-[260px] md:flex-1">
             <video
@@ -598,22 +714,26 @@ export function ChatScreen() {
                     className="mx-auto mb-2 h-8 w-8 text-white/30"
                     strokeWidth={1.4}
                   />
-                  {lang === "ar"
-                    ? "أشر بحروف لغة الإشارة العربية وسيتم تهجئتها"
-                    : "Fingerspell American Sign Language letters"}
+                  {lang === "en"
+                    ? t("live.hintAsl")
+                    : arslMode === "phrases"
+                      ? t("live.hintPhrases")
+                      : t("live.hintArsl")}
                 </div>
               </div>
             )}
-            <div className="absolute right-3 top-3 rounded-xl glass-dark px-3 py-1.5 text-center">
-              <div className="text-[9px] text-white/60">دقة</div>
+            <div className="absolute end-3 top-3 rounded-xl glass-dark px-3 py-1.5 text-center">
+              <div className="text-[9px] text-white/60">
+                {t("live.confidence")}
+              </div>
               <div className="text-base font-black text-gradient">
                 {confidence !== null ? `${Math.round(confidence)}%` : "-"}
               </div>
             </div>
             {isDetecting && partialWord && (
               <div
-                dir="rtl"
-                className="absolute left-3 top-3 max-w-[70%] truncate rounded-2xl grad-purple px-4 py-2 text-2xl font-black shadow-glow"
+                dir="auto"
+                className="absolute start-3 top-3 max-w-[60%] truncate rounded-2xl grad-purple px-4 py-2 text-2xl font-black shadow-glow"
               >
                 {partialWord}
               </div>
@@ -624,11 +744,11 @@ export function ChatScreen() {
             >
               {isDetecting ? (
                 <>
-                  <Pause className="h-3.5 w-3.5" /> إيقاف
+                  <Pause className="h-3.5 w-3.5" /> {t("live.stop")}
                 </>
               ) : (
                 <>
-                  <Camera className="h-3.5 w-3.5" /> بدء الكشف
+                  <Camera className="h-3.5 w-3.5" /> {t("live.start")}
                 </>
               )}
             </button>
@@ -637,7 +757,7 @@ export function ChatScreen() {
           {/* اقتراحات تكمل الكلمة اللي تتهجاها */}
           <div
             className="relative mt-3 flex min-h-8 flex-wrap items-center justify-center gap-1.5"
-            dir="rtl"
+            dir="auto"
           >
             {suggestions.length > 0 ? (
               suggestions.map((word) => (
@@ -651,9 +771,7 @@ export function ChatScreen() {
               ))
             ) : (
               <span className="text-[11px] text-white/45">
-                {isDetecting
-                  ? "تهجّ الكلمة حرفًا حرفًا، ونزّل يدك ثانية لتنتهي الكلمة"
-                  : "يتعرف على الحروف ويجمعها في كلمات"}
+                {isDetecting ? t("live.spellHint") : t("live.idleHint")}
               </span>
             )}
           </div>
@@ -662,32 +780,32 @@ export function ChatScreen() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-[10px] text-white/60">
                 <Sparkles className="h-3 w-3 text-primary" />
-                <span>ترجمة الإشارة</span>
+                <span>{t("live.signText")}</span>
               </div>
               <button
                 onClick={() => speak(signTranslation)}
                 disabled={!signTranslation.trim()}
                 className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] hover:bg-white/20 disabled:opacity-40"
               >
-                <Volume2 className="h-3 w-3" /> استماع
+                <Volume2 className="h-3 w-3" /> {t("common.listen")}
               </button>
             </div>
             <div className="relative mt-2">
               <textarea
-                dir="rtl"
+                dir="auto"
                 value={signTranslation}
-                placeholder={WAITING_TEXT}
+                placeholder={t("live.waiting")}
                 onChange={(e) => {
                   setWord(e.target.value);
                   checkProactiveContext(e.target.value);
                 }}
                 rows={2}
-                className="w-full resize-none rounded-xl bg-white/[0.04] p-2 pl-8 text-right text-lg font-semibold leading-snug text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-primary/50 md:text-xl"
+                className="w-full resize-none rounded-xl bg-white/[0.04] px-8 py-2 text-start text-lg font-semibold leading-snug text-white outline-none ring-1 ring-white/10 placeholder:text-white/40 focus:ring-primary/50 md:text-xl"
               />
               <button
                 onClick={clearTranslation}
-                aria-label="مسح"
-                className="absolute left-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20"
+                aria-label={t("common.clear")}
+                className="absolute end-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -697,13 +815,14 @@ export function ChatScreen() {
                 onClick={addSpace}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/10 py-2 text-[11px] font-semibold hover:bg-white/20"
               >
-                <Space className="h-3.5 w-3.5" /> إنهاء الكلمة
+                <Space className="h-3.5 w-3.5" /> {t("live.endWord")}
               </button>
               <button
                 onClick={deleteLetter}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/10 py-2 text-[11px] font-semibold hover:bg-white/20"
               >
-                <Delete className="h-3.5 w-3.5 -scale-x-100" /> حذف حرف
+                <Delete className="h-3.5 w-3.5 rtl:-scale-x-100" />{" "}
+                {t("live.deleteLetter")}
               </button>
             </div>
           </div>
@@ -724,11 +843,11 @@ export function ChatScreen() {
               >
                 <Sparkles className="h-3 w-3" />
                 <span>
-                  {isProactive ? "تدخل استباقي نشط ⚠️" : "يترجم إلى إشارة"}
+                  {isProactive ? t("live.proactiveOn") : t("live.toSign")}
                 </span>
               </div>
               <div className="text-[10px] text-muted-foreground">
-                المحاور · أحمد
+                {t("live.partner")}
               </div>
             </div>
 
@@ -742,7 +861,7 @@ export function ChatScreen() {
               <AvatarViewer />
               {spellCaption && (
                 <div
-                  dir="rtl"
+                  dir={signLang === "arsl" ? "rtl" : "ltr"}
                   className="absolute inset-x-3 bottom-3 flex flex-wrap justify-center gap-0.5 rounded-2xl bg-white/80 px-3 py-2 text-lg font-black backdrop-blur"
                 >
                   {spellCaption.letters.map((l, i) => (
@@ -761,8 +880,8 @@ export function ChatScreen() {
                   ))}
                 </div>
               )}
-              <div className="absolute right-3 top-3 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary backdrop-blur">
-                إشارة حية
+              <div className="absolute end-3 top-3 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary backdrop-blur">
+                {signLangName}
               </div>
             </div>
 
@@ -770,23 +889,23 @@ export function ChatScreen() {
               className={`relative mt-3 rounded-2xl border p-3 shadow-soft backdrop-blur transition-all ${isProactive ? "border-amber-300 bg-amber-50/90" : "border-transparent bg-white/85"}`}
             >
               <textarea
-                dir="rtl"
-                value={replyText}
+                dir="auto"
+                value={shownReply}
                 onChange={(e) => setReplyText(e.target.value)}
                 rows={3}
-                className="w-full resize-none bg-transparent pl-16 text-right text-base font-medium leading-snug text-foreground outline-none"
+                className="w-full resize-none bg-transparent pt-7 text-start text-base font-medium leading-snug text-foreground outline-none"
               />
-              <div className="absolute left-2 top-2 flex gap-1">
+              <div className="absolute end-2 top-2 flex gap-1">
                 <button
-                  onClick={() => speak(replyText)}
-                  aria-label="استماع"
+                  onClick={() => speak(shownReply)}
+                  aria-label={t("common.listen")}
                   className="grid h-6 w-6 place-items-center rounded-full bg-primary/10 text-primary hover:bg-primary/20"
                 >
                   <Volume2 className="h-3 w-3" />
                 </button>
                 <button
                   onClick={() => setReplyText("")}
-                  aria-label="مسح"
+                  aria-label={t("common.clear")}
                   className="grid h-6 w-6 place-items-center rounded-full bg-foreground/10 text-foreground/70 hover:bg-foreground/20"
                 >
                   <X className="h-3 w-3" />
@@ -798,7 +917,7 @@ export function ChatScreen() {
               {mic.supported && (
                 <button
                   onClick={mic.toggle}
-                  aria-label={mic.listening ? "إيقاف التسجيل" : "تحدث"}
+                  aria-label={mic.listening ? t("live.micStop") : t("live.mic")}
                   className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition-all ${mic.listening ? "animate-pulse bg-rose-500 text-white" : "bg-foreground/5 text-foreground/70"}`}
                 >
                   {mic.listening ? (
@@ -809,21 +928,19 @@ export function ChatScreen() {
                 </button>
               )}
               <input
-                dir="rtl"
+                dir="auto"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleTextSend()}
                 placeholder={
-                  mic.listening
-                    ? "تحدث الآن..."
-                    : "اكتب لتحويل النص إلى إشارة..."
+                  mic.listening ? t("live.speakNow") : t("live.typeToSign")
                 }
                 className="min-w-0 flex-1 bg-transparent px-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
               {inputText && (
                 <button
                   onClick={() => setInputText("")}
-                  aria-label="مسح"
+                  aria-label={t("common.clear")}
                   className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-foreground/10 text-foreground/70 hover:bg-foreground/20"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -831,10 +948,10 @@ export function ChatScreen() {
               )}
               <button
                 onClick={handleTextSend}
-                aria-label="إرسال"
+                aria-label={t("common.send")}
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-full grad-purple shadow-soft"
               >
-                <Send className="h-4 w-4 text-white" />
+                <Send className="h-4 w-4 text-white rtl:-scale-x-100" />
               </button>
             </div>
           </div>

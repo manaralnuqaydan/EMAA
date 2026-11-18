@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// نطق النص بالعربية عبر Web Speech API
+// العربي ينطق بصوت عربي، وغيره بصوت إنجليزي
+export function speechLang(text: string) {
+  return /[\u0600-\u06FF]/.test(text) ? "ar-SA" : "en-US";
+}
+
+// نطق النص عبر Web Speech API بلغة النص نفسه
 export function speak(text: string) {
   if (
     typeof window === "undefined" ||
@@ -11,11 +16,12 @@ export function speak(text: string) {
   const synth = window.speechSynthesis;
   synth.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "ar-SA";
+  const lang = speechLang(text);
+  utterance.lang = lang;
   utterance.rate = 0.95;
   const voice =
-    synth.getVoices().find((v) => v.lang === "ar-SA") ??
-    synth.getVoices().find((v) => v.lang.startsWith("ar"));
+    synth.getVoices().find((v) => v.lang === lang) ??
+    synth.getVoices().find((v) => v.lang.startsWith(lang.slice(0, 2)));
   if (voice) utterance.voice = voice;
   synth.speak(utterance);
 }
@@ -38,7 +44,10 @@ type Recognition = {
 };
 
 // تحويل الكلام إلى نص (يعمل في Chrome و Edge و Safari)
-export function useSpeechToText(onText: (text: string) => void) {
+export function useSpeechToText(
+  onText: (text: string) => void,
+  lang: "ar-SA" | "en-US" = "ar-SA",
+) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
   const recognitionRef = useRef<Recognition | null>(null);
@@ -50,7 +59,7 @@ export function useSpeechToText(onText: (text: string) => void) {
     const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Ctor) return;
     const recognition = new Ctor();
-    recognition.lang = "ar-SA";
+    recognition.lang = lang;
     recognition.interimResults = false;
     recognition.onresult = (e) => onTextRef.current(e.results[0][0].transcript);
     recognition.onend = () => setListening(false);
@@ -58,7 +67,7 @@ export function useSpeechToText(onText: (text: string) => void) {
     recognitionRef.current = recognition;
     setSupported(true);
     return () => recognition.stop();
-  }, []);
+  }, [lang]);
 
   const toggle = useCallback(() => {
     const recognition = recognitionRef.current;

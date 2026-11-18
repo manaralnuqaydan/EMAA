@@ -1,8 +1,11 @@
 import { ChevronRight, Type, Video, ArrowLeft, Camera } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import avatarSaudi from "@/assets/avatar-saudi.png";
+import { useI18n } from "@/lib/i18n";
+import { LanguageSwitcher, SignLanguagePicker } from "@/components/LanguageControls";
 
 export function ModeScreen() {
+  const { t } = useI18n();
   return (
     <div className="relative h-full w-full grad-soft">
       <div className="absolute top-20 -right-20 h-64 w-64 rounded-full opacity-60 blur-3xl"
@@ -12,16 +15,22 @@ export function ModeScreen() {
 
       <div className="relative z-10 mx-auto flex h-full w-full max-w-xl flex-col px-5 pb-8 pt-12">
         <div className="flex items-center justify-between">
-          <Link to="/home" className="grid h-10 w-10 place-items-center rounded-full glass shadow-soft" aria-label="رجوع">
-            <ChevronRight className="h-4 w-4 text-foreground/70" />
+          <Link to="/home" className="grid h-10 w-10 place-items-center rounded-full glass shadow-soft" aria-label={t("common.back")}>
+            <ChevronRight className="h-4 w-4 text-foreground/70 ltr:-scale-x-100" />
           </Link>
-          <div className="text-sm font-bold">اختر وضع الترجمة</div>
-          <div className="h-10 w-10" />
+          <div className="text-sm font-bold">{t("modes.title")}</div>
+          <LanguageSwitcher />
         </div>
 
         <p className="mt-3 text-center text-[11px] text-muted-foreground">
-          كل وضع مصمم لتجربة تواصل مميزة
+          {t("modes.subtitle")}
         </p>
+
+        <div className="mt-4">
+          <div className="mb-1.5 text-center text-[11px] font-bold text-foreground/70">{t("signLang.label")}</div>
+          <SignLanguagePicker />
+          <p className="mt-1.5 text-center text-[10px] text-muted-foreground">{t("signLang.chooseHint")}</p>
+        </div>
 
         <div className="mt-6 flex flex-1 flex-col gap-4">
           {/* Card A */}
@@ -31,14 +40,14 @@ export function ModeScreen() {
             <div className="relative flex gap-4">
               <div className="flex-1">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-[9px] font-bold text-primary">
-                  <Type className="h-3 w-3" /> الوضع الأول
+                  <Type className="h-3 w-3" /> {t("modes.first")}
                 </div>
-                <h3 className="mt-2 text-lg font-black leading-tight">نص إلى لغة إشارة</h3>
+                <h3 className="mt-2 text-lg font-black leading-tight">{t("modes.chatTitle")}</h3>
                 <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                  اكتب أي نص ودع الأفاتار ثلاثي الأبعاد يترجمه بسلاسة
+                  {t("modes.chatDesc")}
                 </p>
                 <Link to="/camera" className="mt-3 inline-flex items-center gap-1.5 rounded-full grad-purple px-3.5 py-1.5 text-[11px] font-bold text-white shadow-soft">
-                  ابدأ الآن <ArrowLeft className="h-3 w-3" />
+                  {t("modes.start")} <ArrowLeft className="h-3 w-3 ltr:-scale-x-100" />
                 </Link>
               </div>
               <div className="relative h-24 w-24 shrink-0">
@@ -54,18 +63,18 @@ export function ModeScreen() {
             style={{ background: "linear-gradient(160deg, oklch(0.32 0.15 290), oklch(0.22 0.13 280))" }}>
             <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full opacity-60 blur-2xl"
               style={{ background: "radial-gradient(circle, oklch(0.7 0.25 300 / 0.8), transparent 70%)" }} />
-            <div className="absolute top-3 left-3 rounded-full bg-white/10 px-2 py-0.5 text-[9px] text-white/80 backdrop-blur">LIVE</div>
+            <div className="absolute top-3 end-3 rounded-full bg-white/10 px-2 py-0.5 text-[9px] text-white/80 backdrop-blur">LIVE</div>
             <div className="relative flex gap-4">
               <div className="flex-1">
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[9px] font-bold backdrop-blur">
-                  <Video className="h-3 w-3" /> الوضع الثاني
+                  <Video className="h-3 w-3" /> {t("modes.second")}
                 </div>
-                <h3 className="mt-2 text-lg font-black leading-tight">إشارة فورية إلى نص وصوت</h3>
+                <h3 className="mt-2 text-lg font-black leading-tight">{t("modes.liveTitle")}</h3>
                 <p className="mt-1 text-[11px] leading-relaxed text-white/70">
-                  أشر بالحروف أمام الكاميرا ويتهجاها الذكاء الاصطناعي وينطقها لحظيًا
+                  {t("modes.liveDesc")}
                 </p>
                 <Link to="/chat" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-primary shadow-soft">
-                  جربه <ArrowLeft className="h-3 w-3" />
+                  {t("modes.try")} <ArrowLeft className="h-3 w-3 ltr:-scale-x-100" />
                 </Link>
               </div>
               <div className="relative h-24 w-24 shrink-0">

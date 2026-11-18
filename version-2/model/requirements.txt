@@ -4,3 +4,4 @@ uvicorn
 opencv-python-headless
 numpy
 anthropic
+scikit-learn  # موديل العبارات الأصلي (phrases_model.pkl)

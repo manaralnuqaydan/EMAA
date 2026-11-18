@@ -9,16 +9,18 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { I18nProvider, PRELOAD_LANG_SCRIPT, useI18n } from "@/lib/i18n";
 
 
 function NotFoundComponent() {
+  const { t } = useI18n();
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <p className="mt-2 text-sm text-muted-foreground">الصفحة غير موجودة</p>
+        <p className="mt-2 text-sm text-muted-foreground">{t("notFound.text")}</p>
         <Link to="/" className="mt-6 inline-flex rounded-full grad-purple px-5 py-2 text-sm text-primary-foreground">
-          العودة للرئيسية
+          {t("notFound.home")}
         </Link>
       </div>
     </div>
@@ -28,13 +30,14 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const { t } = useI18n();
   return (
     <div className="flex min-h-dvh items-center justify-center bg-background px-4 text-center">
       <div>
-        <h1 className="text-xl font-semibold">حدث خطأ</h1>
+        <h1 className="text-xl font-semibold">{t("error.title")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
         <button onClick={() => { router.invalidate(); reset(); }} className="mt-6 rounded-full grad-purple px-5 py-2 text-sm text-primary-foreground">
-          إعادة المحاولة
+          {t("error.retry")}
         </button>
       </div>
     </div>
@@ -72,9 +75,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl">
-      <head><HeadContent /></head>
-      <body>{children}<Scripts /></body>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: PRELOAD_LANG_SCRIPT }} />
+        <HeadContent />
+      </head>
+      <body>
+        <I18nProvider>{children}</I18nProvider>
+        <Scripts />
+      </body>
     </html>
   );
 }

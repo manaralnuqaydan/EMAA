@@ -1,3 +1,4 @@
+import type { SignLang } from "@/lib/i18n";
 import { Suspense, useEffect, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useFBX } from "@react-three/drei";
@@ -52,7 +53,8 @@ function AvatarModel({ action: currentAction }: { action?: string }) {
   const pendingPlay = useRef(false);
   const restPose = useRef<Map<string, THREE.Quaternion>>(new Map());
   const faces = useRef<THREE.Mesh[]>([]);
-  const shapes = useRef<Handshapes>({});
+  // كل لغة إشارة لها أشكال يد منفصلة، وما نخلطهم أبدًا
+  const shapes = useRef<Record<SignLang, Handshapes>>({ arsl: {}, asl: {} });
   // تهجئة: قائمة وضعيات (وضعية لكل حرف) ووقت بدايتها
   const spelling = useRef<{
     poses: Map<string, THREE.Quaternion>[];
@@ -139,19 +141,26 @@ function AvatarModel({ action: currentAction }: { action?: string }) {
 
   useEffect(() => {
     // أشكال اليد العربية (ArASL) والإنجليزية (ASL) إذا موجودة
-    for (const file of ["handshapes_ar", "handshapes_en"]) {
+    const files: [SignLang, string][] = [
+      ["arsl", "handshapes_ar"],
+      ["asl", "handshapes_en"],
+    ];
+    for (const [lang, file] of files) {
       fetch(`/data/${file}.json`)
         .then((res) => res.json())
-        .then((data: Handshapes) => Object.assign(shapes.current, data))
+        .then((data: Handshapes) => (shapes.current[lang] = data))
         .catch(() => {});
     }
 
     // يتهجى النص حرفًا حرفًا بأشكال يد مأخوذة من صور حقيقية
     const spell = (e: Event) => {
-      const letters = splitLetters(
-        (e as CustomEvent<string>).detail ?? "",
-        shapes.current,
-      );
+      const detail = (e as CustomEvent<string | SpellRequest>).detail;
+      const req: SpellRequest =
+        typeof detail === "string"
+          ? { text: detail, signLang: "arsl" }
+          : detail;
+      const langShapes = shapes.current[req.signLang];
+      const letters = splitLetters(req.text ?? "", langShapes);
       if (!letters.length) return;
       action.current?.stop();
       const saved = new Map(
@@ -167,7 +176,7 @@ function AvatarModel({ action: currentAction }: { action?: string }) {
         if (l !== " ")
           last = solveLetter(
             avatar,
-            shapes.current[l].landmarks,
+            langShapes[l].landmarks,
             restPose.current,
           );
         return last;
@@ -274,3 +283,6 @@ export default function AvatarViewer({
     </Canvas>
   );
 }
+
+// طلب تهجئة: النص ولغة الإشارة اللي يتهجى بها
+export type SpellRequest = { text: string; signLang: SignLang };

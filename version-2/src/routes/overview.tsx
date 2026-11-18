@@ -5,20 +5,23 @@ import { HomeScreen } from "@/components/screens/HomeScreen";
 import { ModeScreen } from "@/components/screens/ModeScreen";
 import { CameraScreen } from "@/components/screens/CameraScreen";
 import { ChatScreen } from "@/components/screens/ChatScreen";
+import { useI18n } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageControls";
 
 export const Route = createFileRoute("/overview")({
   component: Overview,
 });
 
 const screens = [
-  { id: "splash", label: "01 · Splash", caption: "افتتاحية تطبيق إيماء", Component: SplashScreen },
-  { id: "home", label: "02 · Home", caption: "الشاشة الرئيسية", Component: HomeScreen },
-  { id: "mode", label: "03 · Modes", caption: "اختيار وضع الترجمة", Component: ModeScreen },
-  { id: "camera", label: "04 · Live Translate", caption: "الترجمة الفورية بالكاميرا", Component: CameraScreen },
-  { id: "chat", label: "05 · AI Chat", caption: "محادثة ذكية مع AI", Component: ChatScreen },
+  { id: "splash", label: "01 · Splash", caption: "overview.splash", Component: SplashScreen },
+  { id: "home", label: "02 · Home", caption: "overview.home", Component: HomeScreen },
+  { id: "mode", label: "03 · Modes", caption: "overview.mode", Component: ModeScreen },
+  { id: "camera", label: "04 · AI Chat", caption: "overview.camera", Component: CameraScreen },
+  { id: "chat", label: "05 · Live Translate", caption: "overview.chat", Component: ChatScreen },
 ];
 
 function Overview() {
+  const { t } = useI18n();
   return (
     <div className="relative min-h-dvh w-full overflow-x-hidden">
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -37,13 +40,14 @@ function Overview() {
         <h1 className="mt-5 text-4xl font-black leading-tight md:text-6xl">
           <span className="text-gradient">إيماء</span>
         </h1>
-        <p className="mt-3 text-base font-medium text-foreground/80">تواصل بلا حدود · نحو عالم أكثر شمولاً</p>
+        <p className="mt-3 text-base font-medium text-foreground/80">{t("overview.tagline")}</p>
+        <div className="mt-4 flex justify-center"><LanguageSwitcher /></div>
       </header>
 
       <section className="mx-auto mt-12 max-w-7xl px-4 pb-24">
         <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 place-items-center">
           {screens.map((s) => (
-            <PhoneFrame key={s.id} label={s.label} caption={s.caption}>
+            <PhoneFrame key={s.id} label={s.label} caption={t(s.caption)}>
               <s.Component />
             </PhoneFrame>
           ))}
