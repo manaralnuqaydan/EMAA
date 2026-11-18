@@ -11,6 +11,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import AvatarViewer from "../ui/AvatarViewer";
+import SpellCaption from "../ui/SpellCaption";
 import { downloadText, speak, stopSpeaking } from "@/lib/speech";
 import { translate, useI18n } from "@/lib/i18n";
 import {
@@ -73,10 +74,6 @@ export function CameraScreen() {
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState(false);
   const [isProactive, setIsProactive] = useState(false);
-  const [spellCaption, setSpellCaption] = useState<{
-    letters: string[];
-    index: number;
-  } | null>(null);
   const retryCountRef = useRef(0);
   const historyRef = useRef<ChatTurn[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
@@ -85,17 +82,7 @@ export function CameraScreen() {
     (lang === "ar" ? r.ar : r.en) || r.ar || r.en;
 
   useEffect(() => {
-    const onProgress = (e: Event) => {
-      const { letters, index } = (
-        e as CustomEvent<{ letters: string[]; index: number }>
-      ).detail;
-      setSpellCaption(index < letters.length ? { letters, index } : null);
-    };
-    window.addEventListener("spellProgress", onProgress);
-    return () => {
-      window.removeEventListener("spellProgress", onProgress);
-      stopSpeaking();
-    };
+    return () => stopSpeaking();
   }, []);
 
   useEffect(() => {
@@ -237,45 +224,28 @@ export function CameraScreen() {
           <div className="absolute end-3 top-3 z-10 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold">
             {t(`signLang.${signLang}`)}
           </div>
-          <div className="relative h-80 w-full flex-1 md:h-full">
+          <div className="relative h-[26rem] w-full md:h-full md:flex-1">
             <AvatarViewer />
           </div>
-          {spellCaption ? (
-            <div
-              dir={signLang === "arsl" ? "rtl" : "ltr"}
-              className="absolute bottom-3 left-1/2 flex max-w-[90%] -translate-x-1/2 flex-wrap justify-center gap-0.5 rounded-2xl bg-black/50 px-4 py-2 text-2xl font-black backdrop-blur"
-            >
-              {spellCaption.letters.map((l, i) => (
-                <span
-                  key={i}
-                  className={
-                    i === spellCaption.index
-                      ? "scale-125 text-primary transition-transform"
-                      : i < spellCaption.index
-                        ? "text-white/80"
-                        : "text-white/30"
-                  }
-                >
-                  {l === " " ? " " : l}
-                </span>
-              ))}
-            </div>
-          ) : (
-            lastReply?.sign && (
-              <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2 rounded-2xl bg-black/40 px-3 py-2 text-[11px] text-white/80 backdrop-blur">
-                <span>
-                  {t("assistant.avatarSpells", { words: lastReply.sign })}
-                </span>
-                <button
-                  onClick={() => spellOnAvatar(lastReply.sign, signLang)}
-                  aria-label={t("assistant.replaySign")}
-                  className="grid h-7 w-7 place-items-center rounded-full bg-white/15 hover:bg-white/25"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )
-          )}
+          <SpellCaption
+            dark
+            idle={
+              lastReply?.sign && (
+                <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2 rounded-2xl bg-black/40 px-3 py-2 text-[11px] text-white/80 backdrop-blur">
+                  <span>
+                    {t("assistant.avatarSpells", { words: lastReply.sign })}
+                  </span>
+                  <button
+                    onClick={() => spellOnAvatar(lastReply.sign, signLang)}
+                    aria-label={t("assistant.replaySign")}
+                    className="grid h-7 w-7 place-items-center rounded-full bg-white/15 hover:bg-white/25"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )
+            }
+          />
         </div>
 
         {/* المحادثة */}

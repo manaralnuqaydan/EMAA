@@ -17,6 +17,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { useState, useRef, useEffect, useCallback } from "react";
 import AvatarViewer from "@/components/ui/AvatarViewer";
+import SpellCaption from "@/components/ui/SpellCaption";
 import { speak, stopSpeaking, useSpeechToText } from "@/lib/speech";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -132,10 +133,6 @@ export function ChatScreen() {
   const signFramesRef = useRef<number[][]>([]);
   const lastHandsAtRef = useRef(0);
   const [wordHint, setWordHint] = useState<string | null>(null);
-  const [spellCaption, setSpellCaption] = useState<{
-    letters: string[];
-    index: number;
-  } | null>(null);
 
   const retryCountRef = useRef<number>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -251,18 +248,6 @@ export function ChatScreen() {
       console.error("خطأ في الاتصال بالـ API:", err);
     }
   };
-
-  // شريط تحت الأفاتار يبين الحرف اللي يأشّره الحين
-  useEffect(() => {
-    const onProgress = (e: Event) => {
-      const { letters, index } = (
-        e as CustomEvent<{ letters: string[]; index: number }>
-      ).detail;
-      setSpellCaption(index < letters.length ? { letters, index } : null);
-    };
-    window.addEventListener("spellProgress", onProgress);
-    return () => window.removeEventListener("spellProgress", onProgress);
-  }, []);
 
   useEffect(() => {
     fetch("/data/dataset.json")
@@ -1055,27 +1040,7 @@ export function ChatScreen() {
               }}
             >
               <AvatarViewer />
-              {spellCaption && (
-                <div
-                  dir={signLang === "arsl" ? "rtl" : "ltr"}
-                  className="absolute inset-x-3 bottom-3 flex flex-wrap justify-center gap-0.5 rounded-2xl bg-white/80 px-3 py-2 text-lg font-black backdrop-blur"
-                >
-                  {spellCaption.letters.map((l, i) => (
-                    <span
-                      key={i}
-                      className={
-                        i === spellCaption.index
-                          ? "text-primary scale-125 transition-transform"
-                          : i < spellCaption.index
-                            ? "text-foreground/70"
-                            : "text-foreground/25"
-                      }
-                    >
-                      {l === " " ? "\u00A0" : l}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <SpellCaption />
               <div className="absolute end-3 top-3 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary backdrop-blur">
                 {signLangName}
               </div>

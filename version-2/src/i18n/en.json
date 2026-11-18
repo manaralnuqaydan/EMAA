@@ -129,5 +129,16 @@
     "camera": "Chat with the assistant",
     "chat": "Live camera translation",
     "tagline": "Communication without limits · towards a more inclusive world"
+  },
+  "avatar": {
+    "pause": "Pause",
+    "resume": "Resume",
+    "replay": "Replay",
+    "speed": "Speed",
+    "unsupported": "Faded letters have no handshape yet, so they are shown as text only",
+    "noShapes": "No {lang} handshapes yet, so the word is shown as text only",
+    "whQuestion": "Wh-question: brows lowered",
+    "yesnoQuestion": "Yes/no question: brows raised",
+    "animationNote": "Procedural fingerspelling (not motion capture of a Deaf signer)"
   }
 }

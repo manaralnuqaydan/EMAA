@@ -154,20 +154,78 @@ export function solveLetter(
   return new Map(names.map((n) => [n, bone(n).quaternion.clone()]));
 }
 
-/** يقسم النص لحروف: عربي ArASL (ال و لا حرف واحد) أو إنجليزي ASL */
-export function splitLetters(text: string, shapes: Handshapes) {
-  const out: string[] = [];
+export type SpellToken = { ch: string; ok: boolean };
+
+/** يقسم النص لحروف: عربي ArASL (ال و لا حرف واحد) أو إنجليزي ASL.
+ * الحرف اللي ما عندنا له شكل يد يرجع ok=false (نعرضه نص بدل ما نخترع إشارة) */
+export function splitLetters(text: string, shapes: Handshapes): SpellToken[] {
+  const out: SpellToken[] = [];
   const chars = Array.from(
-    text.replace(/[أإآ]/g, "ا").replace(/ؤ/g, "و").replace(/ئ/g, "ي"),
+    text
+      .replace(/[أإآ]/g, "ا")
+      .replace(/ؤ/g, "و")
+      .replace(/ئ/g, "ي")
+      .replace(/[\u064B-\u0652\u0640]/g, "") // تشكيل وتطويل
+      .replace(/\s+/g, " ")
+      .trim(),
   );
   for (let i = 0; i < chars.length; i++) {
-    const pair = chars[i] + (chars[i + 1] ?? "");
+    const c = chars[i];
+    const pair = c + (chars[i + 1] ?? "");
     if (shapes[pair]) {
-      out.push(pair);
+      out.push({ ch: pair, ok: true });
       i++;
-    } else if (shapes[chars[i]]) out.push(chars[i]);
-    else if (shapes[chars[i].toUpperCase()]) out.push(chars[i].toUpperCase());
-    else if (chars[i] === " ") out.push(" ");
+    } else if (shapes[c]) out.push({ ch: c, ok: true });
+    else if (shapes[c.toUpperCase()])
+      out.push({ ch: c.toUpperCase(), ok: true });
+    else if (c === " ") out.push({ ch: " ", ok: true });
+    else if (/[\p{L}\p{N}]/u.test(c)) out.push({ ch: c, ok: false });
+    // علامات الترقيم نتجاهلها
   }
   return out;
+}
+
+export type QuestionType = "wh" | "yesno" | null;
+
+const WH = [
+  "what",
+  "where",
+  "when",
+  "who",
+  "whom",
+  "why",
+  "how",
+  "which",
+  "ماذا",
+  "ما",
+  "متى",
+  "أين",
+  "اين",
+  "وين",
+  "من",
+  "لماذا",
+  "ليش",
+  "ليه",
+  "كيف",
+  "كم",
+  "أي",
+  "اي",
+  "وش",
+  "ايش",
+  "إيش",
+  "شو",
+];
+
+/** نوع السؤال من النص: سؤال بأداة استفهام (wh) أو سؤال نعم/لا. يعتمد على علامة الاستفهام */
+export function questionType(text: string): QuestionType {
+  const t = text.trim();
+  if (!/[?؟]$/.test(t)) return null;
+  const words = t
+    .toLowerCase()
+    .replace(/[?؟.,،!]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  // "هل" تبدأ سؤال نعم/لا حتى لو فيه "من" بمعنى (from)
+  if (words[0] === "هل") return "yesno";
+  return words.some((w) => WH.includes(w)) ? "wh" : "yesno";
 }
