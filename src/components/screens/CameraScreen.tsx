@@ -3,12 +3,12 @@ import { Link } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import AvatarViewer from "../ui/AvatarViewer";
 import { downloadText, speak, stopSpeaking } from "@/lib/speech";
+import { SIGN_API_URL } from "@/lib/arasl";
 
 export function CameraScreen() {
   const [arabicText, setArabicText] = useState("مرحبًا، أنا مساعدك الذكي إيماء. كيف يمكنني مساعدتك اليوم؟");
   const [englishText, setEnglishText] = useState("Hello, I am your smart assistant EMAA. How can I help you today?");
   const [inputText, setInputText] = useState("");
-  const [confidence, setConfidence] = useState<number | null>(100);
 
   // 🧠 إدارة حوار الشات والذكاء الاستباقي وحركة الأفاتار
   const [isProactive, setIsProactive] = useState<boolean>(false);
@@ -16,6 +16,8 @@ export function CameraScreen() {
   const [avatarAction, setAvatarAction] = useState<string>("idle");
   const retryCountRef = useRef<number>(0);
   const logRef = useRef<string[]>([]);
+  const historyRef = useRef<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [thinking, setThinking] = useState(false);
 
   // 🔍 قاموس الكلمات المفتاحية الشامل لرصد التعثر والحيرة (Frustration & Hesitation Vocabulary)
   const proactiveKeywords = [
@@ -26,51 +28,49 @@ export function CameraScreen() {
   ];
 
   const handleSendMessage = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || thinking) return;
 
     const userMessage = inputText.trim();
     setInputText("");
     setIsProactive(false);
-    setAvatarAction("signing"); // تشغيل حركة الإشارة فوراً عند الإرسال
-    window.dispatchEvent(new CustomEvent("playAvatar"));
     logRef.current.push(`أنت: ${userMessage}`);
+    const history = [...historyRef.current, { role: "user" as const, content: userMessage }];
+    historyRef.current = history;
 
-    // التحقق مما إذا كانت رسالة المستخدم تحتوي على أي من كلمات التعثر
-    const hasStrugglingWord = proactiveKeywords.some(keyword => userMessage.includes(keyword));
-
-    if (hasStrugglingWord) {
+    // رصد التعثر: تكرار كلمات الحيرة يفعّل التدخل الاستباقي مع رد الشات بوت
+    if (proactiveKeywords.some((keyword) => userMessage.includes(keyword))) {
       retryCountRef.current += 1;
-      
-      // ⚠️ تفعيل التدخل الاستباقي عند رصد تكرار الحيرة أو التعثر (المرة الثانية)
       if (retryCountRef.current >= 2) {
         setIsProactive(true);
-        setConfidence(96);
-        setAvatarAction("proactive_alert"); // توجيه الأفاتار لعمل الحركة التنبيهية الإرشادية المحدثة
         setProactiveReason("Background Context Analyzer: Multi-turn hesitation & frustration patterns detected via semantic keyword matching.");
-        setArabicText("⚠️ رصد استباقي: نلاحظ تكرار تعثرك في إتمام هذه الخطوة بالمنصة الرقمية. لتفادي إلغاء الطلب، نقترح عليك التأكد من تعبئة الحقول الإلزامية أولاً. هل تريد شرحاً مرئياً؟");
-        setEnglishText("Proactive Agent: Intervened autonomously to prevent form abandonment.");
-        return;
       }
+    }
 
-      // رد تفاعلي ذكي عند أول بادرة تعثر
-      setTimeout(() => {
-        setArabicText("أنا هنا لفهمك ومساعدتك، يبدو أنك تواجه صعوبة بسيطة في الخطوة الحالية. تفضل بكتابة الاستفسار أو تعديله وسيقوم الأفاتار بإرشادك فوراً.");
-        setEnglishText("AI Chat: Processing user difficulty cues...");
-        setConfidence(88);
-      }, 600);
-
-    } else {
-      // ردود محادثة طبيعية في حال كانت العبارات عادية
-      setTimeout(() => {
-        setArabicText(`تم استقبال رسالتك: "${userMessage}". يقوم الأفاتار الآن بتحويلها إلى إشارة حية لتسهيل التواصل.`);
-        setEnglishText("AI Chat: Successfully translating conversation into real-time sign language.");
-        setConfidence(98);
-      }, 600);
+    setThinking(true);
+    try {
+      const res = await fetch(`${SIGN_API_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+      const data: { ar: string; en: string } = await res.json();
+      historyRef.current = [...history, { role: "assistant", content: data.ar }];
+      logRef.current.push(`إيماء: ${data.ar}`);
+      setArabicText(data.ar);
+      setEnglishText(data.en);
+      setAvatarAction("signing");
+      window.dispatchEvent(new CustomEvent("playAvatar"));
+      speak(data.ar);
+    } catch {
+      setArabicText("الخادم غير متصل. شغّل api.py ثم حاول مرة ثانية.");
+      setEnglishText("The server is offline. Start api.py and try again.");
+    } finally {
+      setThinking(false);
     }
   };
 
   const saveConversation = () => {
-    const lines = [...logRef.current, `إيماء: ${arabicText}`];
+    const lines = logRef.current;
     downloadText(`emaa-${new Date().toISOString().slice(0, 10)}.txt`, lines.join("\n"));
   };
 
@@ -122,12 +122,11 @@ export function CameraScreen() {
             <AvatarViewer currentAction={avatarAction} />
           </div>
 
-          <div className="absolute right-3 top-3 rounded-2xl glass-dark px-3 py-2 text-right">
-            <div className="text-[9px] text-white/60">دقة المعالجة</div>
-            <div className="text-base font-black text-gradient">
-              {confidence !== null ? `${Math.round(confidence)}%` : "-"}
+          {thinking && (
+            <div className="absolute right-3 top-3 rounded-2xl glass-dark px-3 py-2 text-[11px] text-white/80">
+              إيماء يكتب...
             </div>
-          </div>
+          )}
         </div>
 
         {/* Chat & Translation Box */}
@@ -151,7 +150,7 @@ export function CameraScreen() {
             />
             <button
               type="button"
-              onClick={() => { setArabicText(""); setEnglishText(""); setConfidence(null); setIsProactive(false); retryCountRef.current = 0; setAvatarAction("idle"); }}
+              onClick={() => { setArabicText(""); setEnglishText(""); setIsProactive(false); retryCountRef.current = 0; setAvatarAction("idle"); }}
               className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/10 text-white/70 hover:bg-white/20"
             >
               <X className="h-3.5 w-3.5" />
@@ -178,7 +177,8 @@ export function CameraScreen() {
             />
             <button 
               onClick={handleSendMessage}
-              className="grid h-8 w-8 place-items-center rounded-full grad-purple shadow-soft hover:opacity-90 transition-all"
+              disabled={thinking}
+              className="grid disabled:opacity-50 h-8 w-8 place-items-center rounded-full grad-purple shadow-soft hover:opacity-90 transition-all"
             >
               <Send className="h-3.5 w-3.5 text-white" />
             </button>

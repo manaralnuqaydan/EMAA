@@ -38,3 +38,7 @@ model/data.npz
 model/ArASL_Database_54K_Final/
 .venv/
 venv/
+
+# أسرار محلية (مفتاح Claude API)
+.env
+model/.env

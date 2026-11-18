@@ -1,5 +1,6 @@
 import base64
 import json
+from typing import Literal
 
 import cv2
 import numpy as np
@@ -7,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+import chatbot
 from labels import IMG_SIZE
 
 app = FastAPI()
@@ -44,6 +46,23 @@ async def predict_image(data: ImageInput):
         return {"prediction": classes[best], "confidence": float(probabilities[best]) * 100}
     except Exception:
         return {"prediction": "خطأ في المعالجة", "confidence": 0}
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatInput(BaseModel):
+    messages: list[ChatMessage]
+
+
+@app.post("/chat")
+def chat(data: ChatInput):
+    # يرجع الرد بالعربي والإنجليزي: {"ar": ..., "en": ..., "source": ...}
+    if not data.messages or data.messages[-1].role != "user":
+        return {"ar": "", "en": "", "source": "empty"}
+    return chatbot.reply([m.model_dump() for m in data.messages])
 
 
 @app.get("/")
