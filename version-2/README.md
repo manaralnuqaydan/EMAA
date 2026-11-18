@@ -24,3 +24,12 @@ npm install
 npm run dev
 ```
 ثم افتح `http://localhost:8080`. تفاصيل الموديلات والشات بوت في `model/README.md`.
+
+## الاختبارات
+```
+cd version-2/model && python -m pytest tests    # يحتاج pytest و httpx
+cd version-2 && npm test
+```
+
+## التوثيق
+كل مراحل التطوير موثقة في `docs/`، والملخص النهائي (الحالة الصادقة لكل ميزة، الحدود، التشغيل والنشر) في `docs/08-final-report.md`.

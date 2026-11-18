@@ -34,7 +34,9 @@ export const ARASL_LETTERS = [
   "لا",
 ];
 
-export const SIGN_API_URL = "http://localhost:8000";
+// عنوان خادم الموديلات؛ في النشر نحدده بـ VITE_SIGN_API_URL وقت البناء
+export const SIGN_API_URL: string =
+  import.meta.env.VITE_SIGN_API_URL ?? "http://localhost:8000";
 
 // أقل نسبة ثقة لقبول الحرف، وعدد القراءات المتتالية المطلوبة لتثبيته
 export const MIN_CONFIDENCE = 60;
