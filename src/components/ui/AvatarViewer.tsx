@@ -2,6 +2,12 @@ import { Suspense, useEffect, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useFBX } from "@react-three/drei";
 import * as THREE from "three";
+import {
+  LETTER_MS,
+  solveLetter,
+  splitLetters,
+  type Handshapes,
+} from "@/lib/fingerspell";
 
 const blockedLegTracks = [
   "leftupleg",
@@ -44,6 +50,16 @@ function AvatarModel({ action: currentAction }: { action?: string }) {
   const mixer = useRef<THREE.AnimationMixer | null>(null);
   const action = useRef<THREE.AnimationAction | null>(null);
   const pendingPlay = useRef(false);
+  const restPose = useRef<Map<string, THREE.Quaternion>>(new Map());
+  const faces = useRef<THREE.Mesh[]>([]);
+  const shapes = useRef<Handshapes>({});
+  // تهجئة: قائمة وضعيات (وضعية لكل حرف) ووقت بدايتها
+  const spelling = useRef<{
+    poses: Map<string, THREE.Quaternion>[];
+    letters: string[];
+    start: number;
+    shown: number;
+  } | null>(null);
 
   const play = () => {
     if (action.current) {
@@ -76,6 +92,21 @@ function AvatarModel({ action: currentAction }: { action?: string }) {
       applyRestPose(avatar);
       avatar.userData.restPoseApplied = true;
     }
+    faces.current = [];
+    avatar.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.morphTargetDictionary && mesh.morphTargetInfluences)
+        faces.current.push(mesh);
+    });
+    avatar.traverse((o) => {
+      // الملف فيه نسخ مكررة بنفس الاسم، ونعتمد أول نسخة (نفس اللي يرجعها getObjectByName)
+      if (
+        (o as THREE.Bone).isBone &&
+        o.name.startsWith("Right") &&
+        !restPose.current.has(o.name)
+      )
+        restPose.current.set(o.name, o.quaternion.clone());
+    });
 
     if (avatar.animations && avatar.animations.length > 0) {
       mixer.current = new THREE.AnimationMixer(avatar);
@@ -107,14 +138,111 @@ function AvatarModel({ action: currentAction }: { action?: string }) {
   }, []);
 
   useEffect(() => {
+    fetch("/data/handshapes_ar.json")
+      .then((res) => res.json())
+      .then((data: Handshapes) => (shapes.current = data))
+      .catch(() => {});
+
+    // يتهجى النص حرفًا حرفًا بأشكال يد مأخوذة من صور حقيقية
+    const spell = (e: Event) => {
+      const letters = splitLetters(
+        (e as CustomEvent<string>).detail ?? "",
+        shapes.current,
+      );
+      if (!letters.length) return;
+      action.current?.stop();
+      const saved = new Map(
+        [...restPose.current.keys()].map((n) => [
+          n,
+          avatar.getObjectByName(n)!.quaternion.clone(),
+        ]),
+      );
+      const sway = avatar.rotation.y;
+      avatar.rotation.y = 0;
+      let last = restPose.current;
+      const poses = letters.map((l) => {
+        if (l !== " ")
+          last = solveLetter(
+            avatar,
+            shapes.current[l].landmarks,
+            restPose.current,
+          );
+        return last;
+      });
+      saved.forEach((q, n) => avatar.getObjectByName(n)!.quaternion.copy(q));
+      avatar.rotation.y = sway;
+      spelling.current = {
+        poses,
+        letters,
+        start: performance.now(),
+        shown: -1,
+      };
+    };
+    window.addEventListener("spellText", spell);
+    return () => window.removeEventListener("spellText", spell);
+  }, [avatar]);
+
+  useEffect(() => {
     if (currentAction === "signing" || currentAction === "proactive_alert")
       play();
   }, [currentAction]);
 
   useFrame(({ clock }, delta) => {
     if (mixer.current) mixer.current.update(delta);
+    const spell = spelling.current;
+    if (spell) {
+      const i = Math.floor((performance.now() - spell.start) / LETTER_MS);
+      const target = spell.poses[i] ?? restPose.current;
+      if (i !== spell.shown) {
+        // الشاشة تعرض الحرف اللي يأشّره الأفاتار الحين
+        spell.shown = i;
+        window.dispatchEvent(
+          new CustomEvent("spellProgress", {
+            detail: { letters: spell.letters, index: i },
+          }),
+        );
+      }
+      const blend = 1 - Math.exp(-delta * 14);
+      let settled = true;
+      target.forEach((q, n) => {
+        const b = avatar.getObjectByName(n)!;
+        b.quaternion.slerp(q, blend);
+        if (b.quaternion.angleTo(q) > 0.01) settled = false;
+      });
+      if (i >= spell.poses.length && settled) spelling.current = null;
+    }
     // حركة تنفّس خفيفة وهو واقف عشان ما يبان جامد
-    avatar.rotation.y = Math.sin(clock.elapsedTime * 0.6) * 0.05;
+    const t = clock.elapsedTime;
+    avatar.rotation.y = Math.sin(t * 0.6) * 0.05;
+
+    // الوجه: رمش طبيعي، ابتسامة خفيفة، وحركة الفم مع الصوت
+    const blinkPhase = t % 4.2;
+    const blink =
+      blinkPhase < 0.15 ? Math.sin((blinkPhase / 0.15) * Math.PI) : 0;
+    const talking =
+      typeof window !== "undefined" && window.speechSynthesis?.speaking;
+    const mouth = talking
+      ? 0.18 + 0.22 * Math.abs(Math.sin(t * 11) * Math.sin(t * 4.3))
+      : 0;
+    const face: Record<string, number> = {
+      eyeBlinkLeft: blink,
+      eyeBlinkRight: blink,
+      mouthSmile: 0.18,
+      jawOpen: mouth,
+      viseme_aa: mouth * 0.8,
+      viseme_O: talking ? 0.25 * Math.abs(Math.sin(t * 6.1)) : 0,
+    };
+    for (const mesh of faces.current) {
+      for (const [name, value] of Object.entries(face)) {
+        const i = mesh.morphTargetDictionary![name];
+        if (i !== undefined) {
+          const cur = mesh.morphTargetInfluences![i];
+          mesh.morphTargetInfluences![i] = name.startsWith("eyeBlink")
+            ? value
+            : cur + (value - cur) * Math.min(1, delta * 18);
+        }
+      }
+    }
   });
 
   return <primitive object={avatar} scale={0.017} position={[0, -2.0, 0]} />;

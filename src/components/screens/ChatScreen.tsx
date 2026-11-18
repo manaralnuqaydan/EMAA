@@ -74,6 +74,10 @@ export function ChatScreen() {
   const [isProactive, setIsProactive] = useState<boolean>(false);
   const [proactiveReason, setProactiveReason] = useState<string>("");
   const [autoSpeak, setAutoSpeak] = useState(true);
+  const [spellCaption, setSpellCaption] = useState<{
+    letters: string[];
+    index: number;
+  } | null>(null);
 
   const retryCountRef = useRef<number>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -95,6 +99,18 @@ export function ChatScreen() {
   const committedLetterRef = useRef<string>("");
 
   const mic = useSpeechToText((text) => setInputText(text));
+
+  // شريط تحت الأفاتار يبين الحرف اللي يأشّره الحين
+  useEffect(() => {
+    const onProgress = (e: Event) => {
+      const { letters, index } = (
+        e as CustomEvent<{ letters: string[]; index: number }>
+      ).detail;
+      setSpellCaption(index < letters.length ? { letters, index } : null);
+    };
+    window.addEventListener("spellProgress", onProgress);
+    return () => window.removeEventListener("spellProgress", onProgress);
+  }, []);
 
   useEffect(() => {
     fetch("/data/dataset.json")
@@ -378,7 +394,8 @@ export function ChatScreen() {
     if (!userText) return;
     setInputText("");
     setReplyText(userText);
-    window.dispatchEvent(new CustomEvent("playAvatar"));
+    // الأفاتار يتهجى النص حرفًا حرفًا بأشكال يد حقيقية من ArASL
+    window.dispatchEvent(new CustomEvent("spellText", { detail: userText }));
     if (autoSpeakRef.current) speak(userText);
   };
 
@@ -655,6 +672,27 @@ export function ChatScreen() {
               }}
             >
               <AvatarViewer />
+              {spellCaption && (
+                <div
+                  dir="rtl"
+                  className="absolute inset-x-3 bottom-3 flex flex-wrap justify-center gap-0.5 rounded-2xl bg-white/80 px-3 py-2 text-lg font-black backdrop-blur"
+                >
+                  {spellCaption.letters.map((l, i) => (
+                    <span
+                      key={i}
+                      className={
+                        i === spellCaption.index
+                          ? "text-primary scale-125 transition-transform"
+                          : i < spellCaption.index
+                            ? "text-foreground/70"
+                            : "text-foreground/25"
+                      }
+                    >
+                      {l === " " ? "\u00A0" : l}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="absolute right-3 top-3 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary backdrop-blur">
                 إشارة حية
               </div>
